@@ -1,90 +1,82 @@
-const TWELVE_KEY = "94c91c54b2c1488cb6288819bb03378a";
-
-// Some tickers need exchange specified for Twelve Data
-const TICKER_MAP = {
-  "ACHR": "ACHR:NASDAQ",
-  "SOUN": "SOUN:NASDAQ",
-  "CAN":  "CAN:NASDAQ",
-  "MU":   "MU:NASDAQ",
-  "NVTS": "NVTS:NASDAQ",
-  "BAI":  "BAI:NYSE",
-  "QTUM": "QTUM:NYSE",
-  "UFO":  "UFO:NASDAQ",
-  "TSM":  "TSM:NYSE",
-  "PGY":  "PGY:NASDAQ",
-  "RGTI": "RGTI:NASDAQ",
-  "RCAT": "RCAT:NASDAQ",
-  "ERAS": "ERAS:NASDAQ",
-  "SMR":  "SMR:NYSE",
-  "AGIX": "AGIX:NASDAQ",
-  "XBI":  "XBI:NYSE",
-  "IONQ": "IONQ:NYSE",
-  "MSFT": "MSFT:NASDAQ",
-};
+const FINNHUB_KEY = "d8ck3q1r01qidic89rogd8ck3q1r01qidic89rp0";
+const TWELVE_KEY  = "94c91c54b2c1488cb6288819bb03378a";
 
 export default async function handler(req, res) {
   res.setHeader("Access-Control-Allow-Origin", "*");
-  res.setHeader("Cache-Control", "s-maxage=60");
+  res.setHeader("Cache-Control", "s-maxage=120");
 
   const { ticker } = req.query;
   if (!ticker) return res.status(400).json({ error: "No ticker" });
 
-  const symbol = TICKER_MAP[ticker] || ticker;
-
-  // Try with exchange-qualified symbol first, then plain ticker
-  const symbols = symbol !== ticker ? [symbol, ticker] : [ticker];
-
-  for (const sym of symbols) {
-    try {
-      const url = `https://api.twelvedata.com/time_series?symbol=${sym}&interval=1day&outputsize=60&type=stock&apikey=${TWELVE_KEY}`;
-      const r = await fetch(url);
-      const d = await r.json();
-
-      if (d.status === "error" || !d.values || d.values.length === 0) continue;
-
-      const values = d.values;
-      const closes = values.map(v => parseFloat(v.close)).filter(Boolean).reverse();
-      const price = closes[closes.length - 1];
-      if (!price || price <= 0) continue;
-
-      // Calculate RSI from closes
-      let rsi = null;
-      if (closes.length >= 15) {
-        let g = 0, l = 0;
-        for (let i = closes.length - 14; i < closes.length; i++) {
-          const diff = closes[i] - closes[i-1];
-          diff > 0 ? g += diff : l -= diff;
-        }
-        const ag = g/14, al = l/14;
-        rsi = al === 0 ? 99 : Math.round(100 - 100/(1 + ag/al));
-      }
-
-      // Calculate MACD
-      const ema = (arr, p) => {
-        const k = 2/(p+1);
-        return arr.reduce((e, v) => v*k + e*(1-k));
-      };
-      let macd = null, macdSignal = null;
-      if (closes.length >= 26) {
-        const e12 = ema(closes.slice(-26), 12);
-        const e26 = ema(closes.slice(-26), 26);
-        macd = e12 - e26;
-        macdSignal = macd * 0.9; // simplified signal
-      }
-
-      return res.status(200).json({ price, closes, rsi, macd, macdSignal, live: true });
-    } catch {}
-  }
-
-  // Final fallback: just get quote price
+  // ── Try Twelve Data first ──────────────────────────────────────────────────
   try {
-    const qr = await fetch(`https://api.twelvedata.com/price?symbol=${ticker}&apikey=${TWELVE_KEY}`);
-    const q = await qr.json();
-    if (q.price && parseFloat(q.price) > 0) {
-      const price = parseFloat(q.price);
-      return res.status(200).json({ price, closes: [price], rsi: null, macd: null, macdSignal: null, live: true });
+    const url = `https://api.twelvedata.com/time_series?symbol=${ticker}&interval=1day&outputsize=60&apikey=${TWELVE_KEY}`;
+    const r = await fetch(url);
+    const d = await r.json();
+    if (d.status !== "error" && d.values?.length > 0) {
+      const closes = d.values.map(v => parseFloat(v.close)).filter(Boolean).reverse();
+      const price  = closes[closes.length - 1];
+      if (price > 0) {
+        const rsi  = calcRSI(closes);
+        const macd = calcMACD(closes);
+        return res.status(200).json({ price, closes, rsi, ...macd, live: true, source: "twelve" });
+      }
+    }
+  } catch {}
+
+  // ── Fallback: Finnhub quote + candles ─────────────────────────────────────
+  try {
+    const to   = Math.floor(Date.now() / 1000);
+    const from = to - 60 * 60 * 24 * 90;
+
+    // Get candles for RSI/Fib
+    const cr = await fetch(
+      `https://finnhub.io/api/v1/stock/candle?symbol=${ticker}&resolution=D&from=${from}&to=${to}&token=${FINNHUB_KEY}`
+    );
+    const cd = await cr.json();
+
+    // Get real-time quote
+    const qr = await fetch(
+      `https://finnhub.io/api/v1/quote?symbol=${ticker}&token=${FINNHUB_KEY}`
+    );
+    const qd = await qr.json();
+
+    const livePrice = qd?.c;
+    const closes    = cd?.s === "ok" ? cd.c.filter(Boolean) : [];
+
+    if (livePrice > 0 && closes.length >= 5) {
+      const allCloses = [...closes, livePrice];
+      const rsi  = calcRSI(allCloses);
+      const macd = calcMACD(allCloses);
+      return res.status(200).json({ price: livePrice, closes: allCloses, rsi, ...macd, live: true, source: "finnhub" });
+    }
+
+    if (livePrice > 0) {
+      return res.status(200).json({ price: livePrice, closes: [livePrice], rsi: null, macd: null, macdSignal: null, live: true, source: "finnhub-quote" });
     }
   } catch {}
 
   return res.status(404).json({ error: "No data for " + ticker });
+}
+
+// ── Technical indicators ───────────────────────────────────────────────────
+function calcRSI(closes) {
+  if (closes.length < 16) return null;
+  let g = 0, l = 0;
+  for (let i = closes.length - 14; i < closes.length; i++) {
+    const d = closes[i] - closes[i-1];
+    d > 0 ? g += d : l -= d;
+  }
+  const ag = g/14, al = l/14;
+  return al === 0 ? 99 : Math.round(100 - 100/(1 + ag/al));
+}
+
+function calcMACD(closes) {
+  if (closes.length < 26) return { macd: null, macdSignal: null };
+  const ema = (arr, p) => { const k=2/(p+1); return arr.reduce((e,v)=>v*k+e*(1-k)); };
+  const e12 = ema(closes.slice(-26), 12);
+  const e26 = ema(closes.slice(-26), 26);
+  const macd = e12 - e26;
+  const macdSignal = macd * 0.85;
+  return { macd, macdSignal };
 }
