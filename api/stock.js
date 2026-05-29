@@ -30,7 +30,7 @@ export default async function handler(req, res) {
   // ── Fallback: Finnhub quote + candles ─────────────────────────────────────
   try {
     const to   = Math.floor(Date.now() / 1000);
-    const from = to - 60 * 60 * 24 * 90;
+    const from = to - 60 * 60 * 24 * 120; // 120 days for better RSI
 
     // Get candles for RSI/Fib
     const cr = await fetch(
@@ -75,7 +75,9 @@ function calcRSI(closes) {
     d > 0 ? g += d : l -= d;
   }
   const ag = g/14, al = l/14;
-  return al === 0 ? 99 : Math.round(100 - 100/(1 + ag/al));
+  if (al === 0) return null;
+  const rsi = Math.round(100 - 100/(1 + ag/al));
+  return rsi >= 97 ? null : rsi;
 }
 
 function calcMACD(closes) {
@@ -87,3 +89,4 @@ function calcMACD(closes) {
   const macdSignal = macd * 0.85;
   return { macd, macdSignal };
 }
+
