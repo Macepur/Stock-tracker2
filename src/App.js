@@ -1,6 +1,7 @@
-import { useState, useEffect, useCallback, useRef } from "react";
+import { useState, useCallback, useRef } from "react";
 
-const AV_KEY = "4BL8MZL7SPMG5FBP";
+// Free CORS proxy + Yahoo Finance = unlimited scans, no API key needed
+const PROXY = "https://corsproxy.io/?";
 
 const MOONSHOTS = [
   { ticker: "RCAT", name: "Red Cat Holdings",  color: "#ff3d00", sector: "Defense Drones"  },
@@ -30,33 +31,22 @@ const ETFS = [
 ];
 
 const FALLBACK = {
-  RCAT:9.05, ACHR:6.78, ERAS:10.16, SMR:11.40, SOUN:8.40,
-  RGTI:26.00, CAN:0.59, MU:116.0, IONQ:63.62,
-  MSFT:416.03, NVTS:31.79, PGY:13.39, TSM:412.32,
-  AGIX:28.50, QTUM:18.20, BAI:50.10, XBI:92.40, UFO:14.80,
+  RCAT:12.70, ACHR:6.78, ERAS:12.20, SMR:11.75, SOUN:8.42,
+  RGTI:18.42, CAN:0.41, MU:116.0, IONQ:63.62,
+  MSFT:427.78, NVTS:28.51, PGY:13.96, TSM:424.90,
+  AGIX:47.24, QTUM:159.10, BAI:50.16, XBI:136.0, UFO:67.81,
 };
 
-// Cache to avoid hitting API limits
-const priceCache = {};
-
-async function fetchLivePrice(ticker) {
-  // Return cached data if less than 30 min old
-  if (priceCache[ticker] && Date.now() - priceCache[ticker].ts < 30 * 60 * 1000) {
-    return priceCache[ticker].data;
-  }
+async function fetchPrice(ticker) {
   try {
-    const url = `https://www.alphavantage.co/query?function=TIME_SERIES_DAILY&symbol=${ticker}&outputsize=compact&apikey=${AV_KEY}`;
-    const res = await fetch(url);
+    const yahooUrl = `https://query1.finance.yahoo.com/v8/finance/chart/${ticker}?interval=1d&range=60d`;
+    const res = await fetch(PROXY + encodeURIComponent(yahooUrl));
     const json = await res.json();
-    const series = json["Time Series (Daily)"];
-    if (!series) return null;
-    const dates = Object.keys(series).sort().slice(-60);
-    const closes = dates.map(d => parseFloat(series[d]["4. close"])).filter(Boolean);
-    if (closes.length < 2) return null;
-    const price = closes[closes.length - 1];
-    const result = { price, closes };
-    priceCache[ticker] = { data: result, ts: Date.now() };
-    return result;
+    const result = json?.chart?.result?.[0];
+    if (!result) return null;
+    const closes = (result.indicators?.quote?.[0]?.close || []).filter(Boolean);
+    const price = result.meta?.regularMarketPrice || closes[closes.length - 1];
+    if (price > 0 && closes.length >= 5) return { price, closes };
   } catch {}
   return null;
 }
@@ -65,17 +55,16 @@ function calcRSI(closes) {
   if (closes.length < 16) return 50;
   let g = 0, l = 0;
   for (let i = closes.length - 14; i < closes.length; i++) {
-    const d = closes[i] - closes[i - 1];
+    const d = closes[i] - closes[i-1];
     d > 0 ? g += d : l -= d;
   }
-  const ag = g / 14, al = l / 14;
-  return al === 0 ? 99 : Math.round(100 - 100 / (1 + ag / al));
+  const ag = g/14, al = l/14;
+  return al === 0 ? 99 : Math.round(100 - 100/(1 + ag/al));
 }
 
 function calcFib(price, closes) {
-  const all = [...closes, price];
-  const hi = Math.max(...all);
-  const lo = Math.min(...all);
+  const hi = Math.max(...closes, price);
+  const lo = Math.min(...closes, price);
   const r = hi - lo || price * 0.3;
   return { hi, lo, f382: hi-0.382*r, f500: hi-0.5*r, f618: hi-0.618*r, f786: hi-0.786*r };
 }
@@ -106,14 +95,10 @@ function buildSignal(price, closes) {
     total >= 5 ? "🚀 KØB NU" :
     total >= 3 ? "✅ KØB SIGNAL" :
     total >= 1 ? "👀 HOLD ØJE" :
-    total >= 0 ? "⏳ VENT" :
-                 "❌ UNDGÅ";
+    total >= 0 ? "⏳ VENT" : "❌ UNDGÅ";
   const actionColor =
-    total >= 5 ? "#00e676" :
-    total >= 3 ? "#69f0ae" :
-    total >= 1 ? "#ffd740" :
-    total >= 0 ? "#ff9800" :
-                 "#ff5252";
+    total >= 5 ? "#00e676" : total >= 3 ? "#69f0ae" :
+    total >= 1 ? "#ffd740" : total >= 0 ? "#ff9800" : "#ff5252";
 
   return { RSI, fib, fibSig, rsiSig, total, action, actionColor };
 }
@@ -131,38 +116,34 @@ export default function App() {
   const [openKey,  setOpenKey]  = useState(null);
   const [scanning, setScanning] = useState(false);
   const [autoOn,   setAutoOn]   = useState(false);
-  const [progress, setProgress] = useState(0);
+  const [lastScan, setLastScan] = useState(null);
   const timerRef = useRef(null);
 
   const scanAll = useCallback(async () => {
     setScanning(true);
-    setProgress(0);
-    const total = allStocks.length;
-    const updated = [];
-
-    for (let i = 0; i < stocks.length; i++) {
-      const s = stocks[i];
-      // Stagger requests to avoid rate limiting (5 req/min on free tier)
-      if (i > 0) await new Promise(r => setTimeout(r, 13000)); // 13 sec between each
-      const live = await fetchLivePrice(s.ticker);
-      const price  = live?.price  || FALLBACK[s.ticker] || 10;
-      const closes = live?.closes?.length >= 5 ? live.closes : Array(20).fill(price);
-      const signal = buildSignal(price, closes);
-      updated.push({ ...s, price, closes, signal, live: !!live, updatedAt: new Date() });
-      setProgress(Math.round(((i + 1) / total) * 100));
-      setStocks([...updated, ...stocks.slice(i + 1)]);
-    }
-
+    const results = await Promise.all(
+      allStocks.map(async s => {
+        const live = await fetchPrice(s.ticker);
+        const price  = live?.price  || FALLBACK[s.ticker] || 10;
+        const closes = live?.closes?.length >= 5 ? live.closes : Array(20).fill(price);
+        const signal = buildSignal(price, closes);
+        return { ...s, price, closes, signal, live: !!live, updatedAt: new Date() };
+      })
+    );
+    setStocks(results);
+    setLastScan(new Date());
     setScanning(false);
-    setProgress(100);
-  }, [stocks]);
+  }, []); // eslint-disable-line
 
-  useEffect(() => { scanAll(); }, []); // eslint-disable-line
-  useEffect(() => {
-    if (autoOn) timerRef.current = setInterval(scanAll, 30 * 60 * 1000); // 30 min auto
-    else clearInterval(timerRef.current);
-    return () => clearInterval(timerRef.current);
-  }, [autoOn, scanAll]);
+  const toggleAuto = () => {
+    if (!autoOn) {
+      setAutoOn(true);
+      timerRef.current = setInterval(scanAll, 10 * 60 * 1000); // every 10 min
+    } else {
+      setAutoOn(false);
+      clearInterval(timerRef.current);
+    }
+  };
 
   const moonshots = stocks.filter(s => s.group === "moonshot");
   const longterm  = stocks.filter(s => s.group === "longterm");
@@ -193,8 +174,10 @@ export default function App() {
               <div style={{ display:"flex", alignItems:"baseline", gap:8, flexWrap:"wrap" }}>
                 <span style={{ fontSize:14, fontWeight:900, color:s.color, fontFamily:"monospace" }}>{s.ticker}</span>
                 <span style={{ fontSize:10, color:"#444" }}>{s.name}</span>
-                {s.live && <span style={{ fontSize:9, color:"#00e676", background:"#00e67615", border:"1px solid #00e67633", padding:"1px 5px", borderRadius:4, fontFamily:"monospace" }}>● LIVE</span>}
-                {!s.live && s.price && <span style={{ fontSize:9, color:"#ff9800", fontFamily:"monospace" }}>~ est</span>}
+                {s.live
+                  ? <span style={{ fontSize:9, color:"#00e676", background:"#00e67615", border:"1px solid #00e67633", padding:"1px 5px", borderRadius:4, fontFamily:"monospace" }}>● LIVE</span>
+                  : s.price && <span style={{ fontSize:9, color:"#ff9800", fontFamily:"monospace" }}>~ est</span>
+                }
               </div>
               {sig ? (
                 <div style={{ display:"flex", alignItems:"center", gap:6, marginTop:3 }}>
@@ -202,7 +185,7 @@ export default function App() {
                   <span style={{ fontSize:10, color:"#3a3a3a", fontFamily:"monospace" }}>RSI {sig.RSI}</span>
                 </div>
               ) : (
-                <span style={{ fontSize:11, color:"#333", fontStyle:"italic" }}>Henter...</span>
+                <span style={{ fontSize:11, color:"#333", fontStyle:"italic" }}>Tryk Scan...</span>
               )}
             </div>
             {s.price && (
@@ -259,7 +242,7 @@ export default function App() {
               </div>
             </div>
             <div style={{ marginTop:5, fontSize:9, color:"#1a1a1a", textAlign:"right", fontFamily:"monospace" }}>
-              {s.live ? "● LIVE via Alpha Vantage" : "~ Estimeret"} · {s.updatedAt?.toLocaleTimeString()}
+              {s.live ? "● LIVE via Yahoo Finance" : "~ Estimeret"} · {s.updatedAt?.toLocaleTimeString()}
             </div>
           </div>
         )}
@@ -274,32 +257,24 @@ export default function App() {
           <div style={{ flex:1 }}>
             <div style={{ fontSize:15, fontWeight:900, color:"#fff" }}>📡 Signal Tracker</div>
             <div style={{ fontSize:9, color:"#2a2a2a", fontFamily:"monospace" }}>
-              {scanning ? `Henter... ${progress}% (${Math.ceil((allStocks.length - Math.round(progress/100*allStocks.length)) * 13 / 60)} min tilbage)` : "Live priser · Fibonacci · RSI"}
+              {lastScan ? `Sidst opdateret: ${lastScan.toLocaleTimeString("da-DK")}` : "Tryk Scan for live priser"}
             </div>
           </div>
-          <button onClick={() => setAutoOn(a => !a)} style={{ background:autoOn?"#00e67615":"rgba(255,255,255,0.05)", color:autoOn?"#00e676":"#555", border:`1px solid ${autoOn?"#00e67633":"rgba(255,255,255,0.08)"}`, borderRadius:8, padding:"6px 10px", fontSize:11, cursor:"pointer" }}>
-            {autoOn ? "⏱ Auto" : "⏱ Off"}
+          <button onClick={toggleAuto} style={{ background:autoOn?"#00e67615":"rgba(255,255,255,0.05)", color:autoOn?"#00e676":"#555", border:`1px solid ${autoOn?"#00e67633":"rgba(255,255,255,0.08)"}`, borderRadius:8, padding:"6px 10px", fontSize:11, cursor:"pointer" }}>
+            {autoOn ? "⏱ Auto 10m" : "⏱ Off"}
           </button>
           <button onClick={scanAll} disabled={scanning} style={{ background:scanning?"#0a1a0a":"#00e676", color:scanning?"#3a6a3a":"#000", border:"none", borderRadius:8, padding:"6px 14px", fontSize:12, fontWeight:700, cursor:scanning?"default":"pointer" }}>
-            {scanning ? `${progress}%` : "⟳ Scan"}
+            {scanning ? "Henter…" : "⟳ Scan"}
           </button>
         </div>
-        {scanning && (
-          <div style={{ height:2, background:"rgba(255,255,255,0.05)", borderRadius:1, marginTop:8 }}>
-            <div style={{ height:"100%", width:`${progress}%`, background:"#00e676", borderRadius:1, transition:"width 0.5s" }}/>
-          </div>
-        )}
       </div>
+
       <div style={{ padding:"12px 14px 40px" }}>
-        {scanning && progress === 0 && (
-          <div style={{ background:"#ffd74015", border:"1px solid #ffd74033", borderRadius:10, padding:"12px 14px", marginBottom:16, fontSize:12, color:"#ffd740" }}>
-            ⏳ Henter live data for alle {allStocks.length} aktier... Det tager ca. 4 minutter pga. API begrænsninger. Vent venligst.
-          </div>
-        )}
         <Section emoji="🚀" label="MOONSHOT PICKS"          color="#ff6d00" list={moonshots}/>
         <Section emoji="📈" label="LONG TERM STOCKS"        color="#60a5fa" list={longterm}/>
         <Section emoji="💼" label="ETF FONDE — €2.000 PLAN" color="#ffd740" list={etfList}/>
       </div>
+
       <div style={{ background:"#080c14", borderTop:"1px solid rgba(255,255,255,0.05)", padding:"10px 14px", textAlign:"center" }}>
         <div style={{ display:"flex", gap:10, flexWrap:"wrap", justifyContent:"center", marginBottom:4 }}>
           {[["🚀 KØB NU","#00e676","5+"],["✅ KØB","#69f0ae","3-4"],["👀 HOLD","#ffd740","1-2"],["⏳ VENT","#ff9800","0"],["❌ UNDGÅ","#ff5252","<0"]].map(([lbl,c,r]) => (
@@ -309,9 +284,8 @@ export default function App() {
             </div>
           ))}
         </div>
-        <div style={{ fontSize:9, color:"#111", fontStyle:"italic" }}>Alpha Vantage · 25 kald/dag gratis · Ikke finansiel rådgivning</div>
+        <div style={{ fontSize:9, color:"#111", fontStyle:"italic" }}>Yahoo Finance via CORS proxy · Ubegrænset scanning · Ikke finansiel rådgivning</div>
       </div>
     </div>
   );
-                     }
-
+  }
