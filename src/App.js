@@ -51,14 +51,17 @@ function calcFib(price, closes) {
 }
 
 function calcRSILocal(closes) {
-  if (closes.length < 16) return 50;
+  if (closes.length < 16) return null;
   let g = 0, l = 0;
   for (let i = closes.length - 14; i < closes.length; i++) {
     const d = closes[i] - closes[i-1];
     d > 0 ? g += d : l -= d;
   }
   const ag = g/14, al = l/14;
-  return al === 0 ? 99 : Math.round(100 - 100/(1 + ag/al));
+  if (al === 0) return null;
+  const rsi = Math.round(100 - 100/(1 + ag/al));
+  // RSI of 98-99 usually means bad data (all gains, no losses) — return null
+  return rsi >= 97 ? null : rsi;
 }
 
 function buildSignal(price, closes, apiRsi, apiMacd, apiMacdSignal) {
@@ -187,7 +190,9 @@ export default function App() {
               {sig ? (
                 <div style={{ display:"flex", alignItems:"center", gap:6, marginTop:3 }}>
                   <span style={{ fontSize:11, fontWeight:700, color:sig.actionColor, background:sig.actionColor+"18", border:`1px solid ${sig.actionColor}33`, padding:"1px 8px", borderRadius:5 }}>{sig.action}</span>
-                  <span style={{ fontSize:10, color:"#3a3a3a", fontFamily:"monospace" }}>RSI {sig.RSI}</span>
+                  {sig.RSI && sig.RSI < 99 && (
+                    <span style={{ fontSize:10, color:"#3a3a3a", fontFamily:"monospace" }}>RSI {sig.RSI}</span>
+                  )}
                 </div>
               ) : (
                 <span style={{ fontSize:11, color:"#333", fontStyle:"italic" }}>Tryk Scan...</span>
@@ -298,5 +303,5 @@ export default function App() {
       </div>
     </div>
   );
-                                                             }
-                                 
+    }
+                  
