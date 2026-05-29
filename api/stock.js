@@ -17,9 +17,12 @@ export default async function handler(req, res) {
       const closes = d.values.map(v => parseFloat(v.close)).filter(Boolean).reverse();
       const price  = closes[closes.length - 1];
       if (price > 0) {
-        const rsi  = calcRSI(closes);
-        const macd = calcMACD(closes);
-        return res.status(200).json({ price, closes, rsi, ...macd, live: true, source: "twelve" });
+        const rsi       = calcRSI(closes);
+        const macd      = calcMACD(closes);
+        const prevClose = closes.length >= 2 ? closes[closes.length - 2] : null;
+        const change    = prevClose ? price - prevClose : null;
+        const changePct = change && prevClose ? (change / prevClose) * 100 : null;
+        return res.status(200).json({ price, closes, rsi, ...macd, change, changePct, live: true, source: "twelve" });
       }
     }
   } catch {}
@@ -44,15 +47,19 @@ export default async function handler(req, res) {
     const livePrice = qd?.c;
     const closes    = cd?.s === "ok" ? cd.c.filter(Boolean) : [];
 
+    const prevClose = qd?.pc;
+    const change    = livePrice && prevClose ? livePrice - prevClose : null;
+    const changePct = change && prevClose ? (change / prevClose) * 100 : null;
+
     if (livePrice > 0 && closes.length >= 5) {
       const allCloses = [...closes, livePrice];
       const rsi  = calcRSI(allCloses);
       const macd = calcMACD(allCloses);
-      return res.status(200).json({ price: livePrice, closes: allCloses, rsi, ...macd, live: true, source: "finnhub" });
+      return res.status(200).json({ price: livePrice, closes: allCloses, rsi, ...macd, change, changePct, live: true, source: "finnhub" });
     }
 
     if (livePrice > 0) {
-      return res.status(200).json({ price: livePrice, closes: [livePrice], rsi: null, macd: null, macdSignal: null, live: true, source: "finnhub-quote" });
+      return res.status(200).json({ price: livePrice, closes: [livePrice], rsi: null, macd: null, macdSignal: null, change, changePct, live: true, source: "finnhub-quote" });
     }
   } catch {}
 
