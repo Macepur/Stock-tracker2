@@ -1,74 +1,19 @@
 import { useState, useCallback, useRef } from "react";
 
 // Free CORS proxy + Yahoo Finance = unlimited scans, no API key needed
-// Multiple proxy fallbacks
-const PROXIES = [
-  "https://api.allorigins.win/raw?url=",
-  "https://corsproxy.io/?",
-  "https://proxy.cors.sh/",
-];
-
-async function fetchWithProxy(url) {
-  for (const proxy of PROXIES) {
-    try {
-      const res = await fetch(proxy + encodeURIComponent(url), {
-        headers: { "x-requested-with": "XMLHttpRequest" }
-      });
-      if (res.ok) {
-        const json = await res.json();
-        if (json) return json;
-      }
-    } catch {}
-  }
-  return null;
-}
-
-const MOONSHOTS = [
-  { ticker: "RCAT", name: "Red Cat Holdings",  color: "#ff3d00", sector: "Defense Drones"  },
-  { ticker: "ACHR", name: "Archer Aviation",   color: "#00e5ff", sector: "Air Taxis"        },
-  { ticker: "ERAS", name: "Erasca Inc.",        color: "#e040fb", sector: "Oncology"         },
-  { ticker: "SMR",  name: "NuScale Power",      color: "#ffea00", sector: "Nuclear Energy"   },
-  { ticker: "SOUN", name: "SoundHound AI",      color: "#ff6090", sector: "Voice AI"         },
-  { ticker: "RGTI", name: "Rigetti Computing",  color: "#b9f6ca", sector: "Quantum"          },
-  { ticker: "CAN",  name: "Canaan Inc.",        color: "#ffd740", sector: "Bitcoin Mining"   },
-  { ticker: "MU",   name: "Micron Technology",  color: "#00d4ff", sector: "AI Memory"        },
-  { ticker: "IONQ", name: "IonQ",               color: "#ea80fc", sector: "Quantum"          },
-];
-
-const LONGTERM = [
-  { ticker: "MSFT", name: "Microsoft",             color: "#60a5fa", sector: "Cloud + AI"     },
-  { ticker: "NVTS", name: "Navitas Semiconductor", color: "#34d399", sector: "AI Power Chips" },
-  { ticker: "PGY",  name: "Pagaya Technologies",   color: "#fb923c", sector: "AI Fintech"     },
-  { ticker: "TSM",  name: "Taiwan Semiconductor",  color: "#f472b6", sector: "Chip Foundry"   },
-];
-
-const ETFS = [
-  { ticker: "AGIX", name: "Roundhill Generative AI ETF", color: "#00e5ff", sector: "AI ETF"      },
-  { ticker: "QTUM", name: "Defiance Quantum ETF",        color: "#ea80fc", sector: "Quantum ETF" },
-  { ticker: "BAI",  name: "iShares Active AI & Tech",    color: "#60a5fa", sector: "AI ETF"      },
-  { ticker: "XBI",  name: "SPDR S&P Biotech ETF",        color: "#34d399", sector: "Biotech ETF" },
-  { ticker: "UFO",  name: "Procure Space ETF",            color: "#ffd740", sector: "Space ETF"   },
-];
-
-const FALLBACK = {
-  RCAT:12.70, ACHR:6.78, ERAS:12.20, SMR:11.75, SOUN:8.42,
-  RGTI:18.42, CAN:0.41, MU:116.0, IONQ:63.62,
-  MSFT:427.78, NVTS:28.51, PGY:13.96, TSM:424.90,
-  AGIX:47.24, QTUM:159.10, BAI:50.16, XBI:136.0, UFO:67.81,
-};
-
+// Use our own Vercel serverless function — no CORS issues, unlimited calls
 async function fetchPrice(ticker) {
   try {
-    const yahooUrl = `https://query1.finance.yahoo.com/v8/finance/chart/${ticker}?interval=1d&range=60d`;
-    const json = await fetchWithProxy(yahooUrl);
-    const result = json?.chart?.result?.[0];
-    if (!result) return null;
-    const closes = (result.indicators?.quote?.[0]?.close || []).filter(Boolean);
-    const price = result.meta?.regularMarketPrice || closes[closes.length - 1];
-    if (price > 0 && closes.length >= 5) return { price, closes };
+    const res = await fetch(`/api/stock?ticker=${ticker}`);
+    if (!res.ok) return null;
+    const data = await res.json();
+    if (data.price > 0 && data.closes?.length >= 5) {
+      return { price: data.price, closes: data.closes };
+    }
   } catch {}
   return null;
 }
+
 
 function calcRSI(closes) {
   if (closes.length < 16) return 50;
@@ -307,4 +252,5 @@ export default function App() {
       </div>
     </div>
   );
-}
+  }
+              
