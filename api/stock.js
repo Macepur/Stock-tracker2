@@ -1,42 +1,56 @@
+const TWELVE_KEY = "94c91c54b2c1488cb6288819bb03378a";
+
 export default async function handler(req, res) {
   res.setHeader("Access-Control-Allow-Origin", "*");
+  res.setHeader("Cache-Control", "s-maxage=60"); // cache 60 seconds
+
   const { ticker } = req.query;
   if (!ticker) return res.status(400).json({ error: "No ticker" });
 
-  // Try multiple data sources
-  const sources = [
-    // Source 1: Yahoo Finance v7 (different endpoint)
-    async () => {
-      const r = await fetch(
-        `https://query2.finance.yahoo.com/v8/finance/chart/${ticker}?interval=1d&range=60d`,
-        { headers: { "User-Agent": "Mozilla/5.0", "Accept": "*/*" } }
-      );
-      const d = await r.json();
-      const result = d?.chart?.result?.[0];
-      const closes = (result?.indicators?.quote?.[0]?.close || []).filter(Boolean);
-      const price = result?.meta?.regularMarketPrice || closes[closes.length-1];
-      if (price > 0 && closes.length >= 5) return { price, closes };
-      return null;
-    },
-    // Source 2: Yahoo Finance v10
-    async () => {
-      const r = await fetch(
-        `https://query1.finance.yahoo.com/v10/finance/quoteSummary/${ticker}?modules=price`,
-        { headers: { "User-Agent": "Mozilla/5.0" } }
-      );
-      const d = await r.json();
-      const price = d?.quoteSummary?.result?.[0]?.price?.regularMarketPrice?.raw;
-      if (price > 0) return { price, closes: [price] };
-      return null;
-    },
-  ];
+  try {
+    // Fetch time series with technical indicators in one call
+    const url = `https://api.twelvedata.com/time_series?symbol=${ticker}&interval=1day&outputsize=60&indicator=rsi,macd&apikey=${TWELVE_KEY}`;
+    const r = await fetch(url);
+    const d = await r.json();
 
-  for (const source of sources) {
-    try {
-      const result = await source();
-      if (result) return res.status(200).json(result);
-    } catch {}
+    if (d.status === "error" || !d.values) {
+      // Fallback: just get quote
+      const qr = await fetch(`https://api.twelvedata.com/quote?symbol=${ticker}&apikey=${TWELVE_KEY}`);
+      const q = await qr.json();
+      if (q.close) {
+        return res.status(200).json({
+          price: parseFloat(q.close),
+          closes: [parseFloat(q.close)],
+          rsi: null,
+          macd: null,
+          live: true,
+        });
+      }
+      return res.status(404).json({ error: "No data for " + ticker });
+    }
+
+    const values = d.values;
+    const closes = values.map(v => parseFloat(v.close)).reverse();
+    const price = closes[closes.length - 1];
+
+    // Get latest RSI
+    const rsiVal = values[0]?.rsi ? parseFloat(values[0].rsi) : null;
+
+    // Get latest MACD
+    const macdVal = values[0]?.macd ? parseFloat(values[0].macd) : null;
+    const macdSignal = values[0]?.macd_signal ? parseFloat(values[0].macd_signal) : null;
+
+    return res.status(200).json({
+      price,
+      closes,
+      rsi: rsiVal,
+      macd: macdVal,
+      macdSignal,
+      live: true,
+    });
+
+  } catch (e) {
+    return res.status(500).json({ error: e.message });
   }
-
-  return res.status(404).json({ error: "All sources failed" });
 }
+
