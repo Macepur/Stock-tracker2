@@ -1,21 +1,56 @@
 import { useState, useCallback, useRef } from "react";
 
-// Free CORS proxy + Yahoo Finance = unlimited scans, no API key needed
-// Use our own Vercel serverless function — no CORS issues, unlimited calls
-async function fetchPrice(ticker) {
+const MOONSHOTS = [
+  { ticker: "RCAT", name: "Red Cat Holdings",  color: "#ff3d00", sector: "Defense Drones"  },
+  { ticker: "ACHR", name: "Archer Aviation",   color: "#00e5ff", sector: "Air Taxis"        },
+  { ticker: "ERAS", name: "Erasca Inc.",        color: "#e040fb", sector: "Oncology"         },
+  { ticker: "SMR",  name: "NuScale Power",      color: "#ffea00", sector: "Nuclear Energy"   },
+  { ticker: "SOUN", name: "SoundHound AI",      color: "#ff6090", sector: "Voice AI"         },
+  { ticker: "RGTI", name: "Rigetti Computing",  color: "#b9f6ca", sector: "Quantum"          },
+  { ticker: "CAN",  name: "Canaan Inc.",        color: "#ffd740", sector: "Bitcoin Mining"   },
+  { ticker: "MU",   name: "Micron Technology",  color: "#00d4ff", sector: "AI Memory"        },
+  { ticker: "IONQ", name: "IonQ",               color: "#ea80fc", sector: "Quantum"          },
+];
+
+const LONGTERM = [
+  { ticker: "MSFT", name: "Microsoft",             color: "#60a5fa", sector: "Cloud + AI"     },
+  { ticker: "NVTS", name: "Navitas Semiconductor", color: "#34d399", sector: "AI Power Chips" },
+  { ticker: "PGY",  name: "Pagaya Technologies",   color: "#fb923c", sector: "AI Fintech"     },
+  { ticker: "TSM",  name: "Taiwan Semiconductor",  color: "#f472b6", sector: "Chip Foundry"   },
+];
+
+const ETFS = [
+  { ticker: "AGIX", name: "Roundhill Generative AI ETF", color: "#00e5ff", sector: "AI ETF"      },
+  { ticker: "QTUM", name: "Defiance Quantum ETF",        color: "#ea80fc", sector: "Quantum ETF" },
+  { ticker: "BAI",  name: "iShares Active AI & Tech",    color: "#60a5fa", sector: "AI ETF"      },
+  { ticker: "XBI",  name: "SPDR S&P Biotech ETF",        color: "#34d399", sector: "Biotech ETF" },
+  { ticker: "UFO",  name: "Procure Space ETF",            color: "#ffd740", sector: "Space ETF"   },
+];
+
+const FALLBACK = {
+  RCAT:12.70, ACHR:6.78, ERAS:12.20, SMR:11.75, SOUN:8.42,
+  RGTI:18.42, CAN:0.41, MU:116.0, IONQ:63.62,
+  MSFT:427.78, NVTS:28.51, PGY:13.96, TSM:424.90,
+  AGIX:47.24, QTUM:159.10, BAI:50.16, XBI:136.0, UFO:67.81,
+};
+
+async function fetchStock(ticker) {
   try {
     const res = await fetch(`/api/stock?ticker=${ticker}`);
     if (!res.ok) return null;
-    const data = await res.json();
-    if (data.price > 0 && data.closes?.length >= 5) {
-      return { price: data.price, closes: data.closes };
-    }
+    return await res.json();
   } catch {}
   return null;
 }
 
+function calcFib(price, closes) {
+  const hi = Math.max(...closes, price);
+  const lo = Math.min(...closes, price);
+  const r = hi - lo || price * 0.3;
+  return { hi, lo, f382: hi-0.382*r, f500: hi-0.5*r, f618: hi-0.618*r, f786: hi-0.786*r };
+}
 
-function calcRSI(closes) {
+function calcRSILocal(closes) {
   if (closes.length < 16) return 50;
   let g = 0, l = 0;
   for (let i = closes.length - 14; i < closes.length; i++) {
@@ -26,18 +61,18 @@ function calcRSI(closes) {
   return al === 0 ? 99 : Math.round(100 - 100/(1 + ag/al));
 }
 
-function calcFib(price, closes) {
-  const hi = Math.max(...closes, price);
-  const lo = Math.min(...closes, price);
-  const r = hi - lo || price * 0.3;
-  return { hi, lo, f382: hi-0.382*r, f500: hi-0.5*r, f618: hi-0.618*r, f786: hi-0.786*r };
-}
-
-function buildSignal(price, closes) {
-  const RSI = calcRSI(closes);
+function buildSignal(price, closes, apiRsi, apiMacd, apiMacdSignal) {
   const fib = calcFib(price, closes);
   const rng = fib.hi - fib.lo;
   const ret = rng === 0 ? 0.5 : (fib.hi - price) / rng;
+
+  // Use API RSI if available, otherwise calculate locally
+  const RSI = apiRsi !== null && apiRsi !== undefined ? Math.round(apiRsi) : calcRSILocal(closes);
+
+  // MACD signal
+  const macdBullish = apiMacd !== null && apiMacdSignal !== null
+    ? apiMacd > apiMacdSignal
+    : null;
 
   const fibSig =
     ret >= 0.60 && ret <= 0.65 ? { lbl: "61.8% Golden ★", sc: 3 } :
@@ -54,17 +89,23 @@ function buildSignal(price, closes) {
     RSI >= 62 ? { lbl: `RSI ${RSI} High`,        sc: -1 } :
                 { lbl: `RSI ${RSI} Neutral`,      sc: 1 };
 
-  const total = fibSig.sc + rsiSig.sc;
+  const macdSig = macdBullish === null
+    ? { lbl: "MACD —", sc: 0 }
+    : macdBullish
+      ? { lbl: "MACD Bullish ↑", sc: 2 }
+      : { lbl: "MACD Bearish ↓", sc: -1 };
+
+  const total = fibSig.sc + rsiSig.sc + macdSig.sc;
   const action =
-    total >= 5 ? "🚀 KØB NU" :
-    total >= 3 ? "✅ KØB SIGNAL" :
-    total >= 1 ? "👀 HOLD ØJE" :
+    total >= 6 ? "🚀 KØB NU" :
+    total >= 4 ? "✅ KØB SIGNAL" :
+    total >= 2 ? "👀 HOLD ØJE" :
     total >= 0 ? "⏳ VENT" : "❌ UNDGÅ";
   const actionColor =
-    total >= 5 ? "#00e676" : total >= 3 ? "#69f0ae" :
-    total >= 1 ? "#ffd740" : total >= 0 ? "#ff9800" : "#ff5252";
+    total >= 6 ? "#00e676" : total >= 4 ? "#69f0ae" :
+    total >= 2 ? "#ffd740" : total >= 0 ? "#ff9800" : "#ff5252";
 
-  return { RSI, fib, fibSig, rsiSig, total, action, actionColor };
+  return { RSI, fib, fibSig, rsiSig, macdSig, total, action, actionColor };
 }
 
 const fmt = n => n < 1 ? n.toFixed(4) : n < 100 ? n.toFixed(2) : n.toFixed(1);
@@ -76,7 +117,7 @@ export default function App() {
     ...ETFS.map(s =>      ({ ...s, group: "etf"       })),
   ];
 
-  const [stocks,   setStocks]   = useState(() => allStocks.map(s => ({ ...s, price: null, closes: [], signal: null, live: false })));
+  const [stocks,   setStocks]   = useState(() => allStocks.map(s => ({ ...s, price: null, signal: null, live: false })));
   const [openKey,  setOpenKey]  = useState(null);
   const [scanning, setScanning] = useState(false);
   const [autoOn,   setAutoOn]   = useState(false);
@@ -87,11 +128,11 @@ export default function App() {
     setScanning(true);
     const results = await Promise.all(
       allStocks.map(async s => {
-        const live = await fetchPrice(s.ticker);
-        const price  = live?.price  || FALLBACK[s.ticker] || 10;
-        const closes = live?.closes?.length >= 5 ? live.closes : Array(20).fill(price);
-        const signal = buildSignal(price, closes);
-        return { ...s, price, closes, signal, live: !!live, updatedAt: new Date() };
+        const data = await fetchStock(s.ticker);
+        const price   = data?.price  || FALLBACK[s.ticker] || 10;
+        const closes  = data?.closes?.length >= 5 ? data.closes : Array(20).fill(price);
+        const signal  = buildSignal(price, closes, data?.rsi, data?.macd, data?.macdSignal);
+        return { ...s, price, signal, live: !!data?.live, updatedAt: new Date() };
       })
     );
     setStocks(results);
@@ -102,7 +143,7 @@ export default function App() {
   const toggleAuto = () => {
     if (!autoOn) {
       setAutoOn(true);
-      timerRef.current = setInterval(scanAll, 10 * 60 * 1000); // every 10 min
+      timerRef.current = setInterval(scanAll, 10 * 60 * 1000);
     } else {
       setAutoOn(false);
       clearInterval(timerRef.current);
@@ -166,7 +207,7 @@ export default function App() {
             <div style={{ display:"grid", gridTemplateColumns:"1fr 1fr", gap:12, marginBottom:12 }}>
               <div>
                 <div style={{ fontSize:9, color:s.color, fontFamily:"monospace", letterSpacing:2, marginBottom:8 }}>SIGNALER</div>
-                {[["📐", sig.fibSig], ["📊", sig.rsiSig]].map(([ic, ss]) => (
+                {[["📐", sig.fibSig], ["📊", sig.rsiSig], ["📈", sig.macdSig]].map(([ic, ss]) => (
                   <div key={ic} style={{ display:"flex", justifyContent:"space-between", marginBottom:6 }}>
                     <span style={{ fontSize:10, color:"#444", fontFamily:"monospace" }}>{ic}</span>
                     <span style={{ fontSize:10, fontFamily:"monospace", color:ss.sc>=2?"#00e676":ss.sc<0?"#ff5252":"#ffd740" }}>{ss.lbl} ({ss.sc>0?"+":""}{ss.sc})</span>
@@ -175,10 +216,10 @@ export default function App() {
                 <div style={{ marginTop:10 }}>
                   <div style={{ display:"flex", justifyContent:"space-between", marginBottom:3 }}>
                     <span style={{ fontSize:9, color:"#2a2a2a", fontFamily:"monospace" }}>SCORE</span>
-                    <span style={{ fontSize:12, fontWeight:800, color:sig.actionColor, fontFamily:"monospace" }}>{sig.total}/6</span>
+                    <span style={{ fontSize:12, fontWeight:800, color:sig.actionColor, fontFamily:"monospace" }}>{sig.total}/8</span>
                   </div>
                   <div style={{ height:4, background:"rgba(255,255,255,0.05)", borderRadius:2 }}>
-                    <div style={{ height:"100%", width:`${Math.max(0,Math.min(100,(sig.total/6)*100))}%`, background:sig.actionColor, borderRadius:2 }}/>
+                    <div style={{ height:"100%", width:`${Math.max(0,Math.min(100,(sig.total/8)*100))}%`, background:sig.actionColor, borderRadius:2 }}/>
                   </div>
                 </div>
               </div>
@@ -198,15 +239,15 @@ export default function App() {
             <div style={{ background:sig.actionColor+"0d", border:`1px solid ${sig.actionColor}22`, borderRadius:8, padding:"10px 12px" }}>
               <div style={{ fontSize:9, color:sig.actionColor, fontFamily:"monospace", letterSpacing:1, marginBottom:5 }}>⚡ ENTRY ANBEFALING</div>
               <div style={{ fontSize:12, color:"#999", lineHeight:1.75 }}>
-                {sig.total >= 5 && `Stærk signal. Køb nær $${fmt(sig.fib.f618)} (61.8%). Stop under $${fmt(sig.fib.f786)}.`}
-                {sig.total >= 3 && sig.total < 5 && `Godt setup. Vent på bekræftelse ved $${fmt(sig.fib.f618)}–$${fmt(sig.fib.f382)}.`}
-                {sig.total >= 1 && sig.total < 3 && `Vent på tilbagetræk til $${fmt(sig.fib.f618)}.`}
-                {sig.total >= 0 && sig.total < 1 && `For tidligt. Vent på RSI under 45.`}
+                {sig.total >= 6 && `Stærk confluence. Køb nær $${fmt(sig.fib.f618)} (61.8%). Stop under $${fmt(sig.fib.f786)}.`}
+                {sig.total >= 4 && sig.total < 6 && `Godt setup. Vent på bekræftelse ved $${fmt(sig.fib.f618)}–$${fmt(sig.fib.f382)}.`}
+                {sig.total >= 2 && sig.total < 4 && `Vent på tilbagetræk til $${fmt(sig.fib.f618)}.`}
+                {sig.total >= 0 && sig.total < 2 && `For tidligt. Vent på RSI under 45.`}
                 {sig.total < 0 && `Bearish. Undgå entry nu.`}
               </div>
             </div>
             <div style={{ marginTop:5, fontSize:9, color:"#1a1a1a", textAlign:"right", fontFamily:"monospace" }}>
-              {s.live ? "● LIVE via Yahoo Finance" : "~ Estimeret"} · {s.updatedAt?.toLocaleTimeString()}
+              {s.live ? "● LIVE via Twelve Data" : "~ Estimeret"} · {s.updatedAt?.toLocaleTimeString("da-DK")}
             </div>
           </div>
         )}
@@ -221,7 +262,7 @@ export default function App() {
           <div style={{ flex:1 }}>
             <div style={{ fontSize:15, fontWeight:900, color:"#fff" }}>📡 Signal Tracker</div>
             <div style={{ fontSize:9, color:"#2a2a2a", fontFamily:"monospace" }}>
-              {lastScan ? `Sidst opdateret: ${lastScan.toLocaleTimeString("da-DK")}` : "Tryk Scan for live priser"}
+              {lastScan ? `Opdateret: ${lastScan.toLocaleTimeString("da-DK")}` : "Tryk Scan for live priser"}
             </div>
           </div>
           <button onClick={toggleAuto} style={{ background:autoOn?"#00e67615":"rgba(255,255,255,0.05)", color:autoOn?"#00e676":"#555", border:`1px solid ${autoOn?"#00e67633":"rgba(255,255,255,0.08)"}`, borderRadius:8, padding:"6px 10px", fontSize:11, cursor:"pointer" }}>
@@ -232,25 +273,23 @@ export default function App() {
           </button>
         </div>
       </div>
-
       <div style={{ padding:"12px 14px 40px" }}>
         <Section emoji="🚀" label="MOONSHOT PICKS"          color="#ff6d00" list={moonshots}/>
         <Section emoji="📈" label="LONG TERM STOCKS"        color="#60a5fa" list={longterm}/>
         <Section emoji="💼" label="ETF FONDE — €2.000 PLAN" color="#ffd740" list={etfList}/>
       </div>
-
       <div style={{ background:"#080c14", borderTop:"1px solid rgba(255,255,255,0.05)", padding:"10px 14px", textAlign:"center" }}>
         <div style={{ display:"flex", gap:10, flexWrap:"wrap", justifyContent:"center", marginBottom:4 }}>
-          {[["🚀 KØB NU","#00e676","5+"],["✅ KØB","#69f0ae","3-4"],["👀 HOLD","#ffd740","1-2"],["⏳ VENT","#ff9800","0"],["❌ UNDGÅ","#ff5252","<0"]].map(([lbl,c,r]) => (
+          {[["🚀 KØB NU","#00e676","6+"],["✅ KØB","#69f0ae","4-5"],["👀 HOLD","#ffd740","2-3"],["⏳ VENT","#ff9800","0-1"],["❌ UNDGÅ","#ff5252","<0"]].map(([lbl,c,r]) => (
             <div key={lbl} style={{ display:"flex", alignItems:"center", gap:4 }}>
               <div style={{ width:6, height:6, borderRadius:"50%", background:c }}/>
               <span style={{ fontSize:9, color:"#252525", fontFamily:"monospace" }}>{lbl} ({r})</span>
             </div>
           ))}
         </div>
-        <div style={{ fontSize:9, color:"#111", fontStyle:"italic" }}>Yahoo Finance via CORS proxy · Ubegrænset scanning · Ikke finansiel rådgivning</div>
+        <div style={{ fontSize:9, color:"#111", fontStyle:"italic" }}>Twelve Data · Live RSI + MACD + Fibonacci · Ikke finansiel rådgivning</div>
       </div>
     </div>
   );
-  }
-              
+    }
+                    
