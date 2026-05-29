@@ -1,7 +1,27 @@
 import { useState, useCallback, useRef } from "react";
 
 // Free CORS proxy + Yahoo Finance = unlimited scans, no API key needed
-const PROXY = "https://corsproxy.io/?";
+// Multiple proxy fallbacks
+const PROXIES = [
+  "https://api.allorigins.win/raw?url=",
+  "https://corsproxy.io/?",
+  "https://proxy.cors.sh/",
+];
+
+async function fetchWithProxy(url) {
+  for (const proxy of PROXIES) {
+    try {
+      const res = await fetch(proxy + encodeURIComponent(url), {
+        headers: { "x-requested-with": "XMLHttpRequest" }
+      });
+      if (res.ok) {
+        const json = await res.json();
+        if (json) return json;
+      }
+    } catch {}
+  }
+  return null;
+}
 
 const MOONSHOTS = [
   { ticker: "RCAT", name: "Red Cat Holdings",  color: "#ff3d00", sector: "Defense Drones"  },
@@ -40,8 +60,7 @@ const FALLBACK = {
 async function fetchPrice(ticker) {
   try {
     const yahooUrl = `https://query1.finance.yahoo.com/v8/finance/chart/${ticker}?interval=1d&range=60d`;
-    const res = await fetch(PROXY + encodeURIComponent(yahooUrl));
-    const json = await res.json();
+    const json = await fetchWithProxy(yahooUrl);
     const result = json?.chart?.result?.[0];
     if (!result) return null;
     const closes = (result.indicators?.quote?.[0]?.close || []).filter(Boolean);
@@ -288,4 +307,4 @@ export default function App() {
       </div>
     </div>
   );
-  }
+}
