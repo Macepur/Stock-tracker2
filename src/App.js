@@ -132,7 +132,7 @@ export default function App() {
         const price   = data?.price  || FALLBACK[s.ticker] || 10;
         const closes  = data?.closes?.length >= 5 ? data.closes : Array(20).fill(price);
         const signal  = buildSignal(price, closes, data?.rsi, data?.macd, data?.macdSignal);
-        return { ...s, price, signal, live: !!data?.live, updatedAt: new Date() };
+        return { ...s, price, change: data?.change || null, changePct: data?.changePct || null, signal, live: !!data?.live, updatedAt: new Date() };
       })
     );
     setStocks(results);
@@ -195,7 +195,14 @@ export default function App() {
             </div>
             {s.price && (
               <div style={{ textAlign:"right", flexShrink:0 }}>
-                <div style={{ fontSize:15, fontWeight:900, color:"#fff", fontFamily:"monospace" }}>${fmt(s.price)}</div>
+                <div style={{ fontSize:15, fontWeight:900, color: s.changePct == null ? "#fff" : s.changePct >= 0 ? "#00e676" : "#ff5252", fontFamily:"monospace" }}>
+                  ${fmt(s.price)}
+                </div>
+                {s.changePct != null && (
+                  <div style={{ fontSize:11, fontWeight:700, color: s.changePct >= 0 ? "#00e676" : "#ff5252", fontFamily:"monospace", textAlign:"right" }}>
+                    {s.changePct >= 0 ? "▲" : "▼"} {Math.abs(s.changePct).toFixed(2)}%
+                  </div>
+                )}
               </div>
             )}
             <div style={{ color:"#333", fontSize:12 }}>{isOpen ? "▲" : "▼"}</div>
@@ -291,5 +298,5 @@ export default function App() {
       </div>
     </div>
   );
-    }
-                    
+                                                             }
+                                 
