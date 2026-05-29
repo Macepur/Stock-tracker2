@@ -36,27 +36,37 @@ const FALLBACK = {
   AGIX:28.50, QTUM:18.20, BAI:50.10, XBI:92.40, UFO:14.80,
 };
 
-// Fetch live price + 30 days candles from Finnhub
+// Fetch live price + 60 days candles from Finnhub
 async function fetchLivePrice(ticker) {
   try {
-    // Current quote
-    const quoteRes = await fetch(
-      `https://finnhub.io/api/v1/quote?symbol=${ticker}&token=${FINNHUB_KEY}`
-    );
-    const quote = await quoteRes.json();
-    const price = quote?.c;
-    if (!price || price <= 0) return null;
-
-    // 30 days of candles for RSI + Fibonacci
     const to = Math.floor(Date.now() / 1000);
-    const from = to - 60 * 60 * 24 * 40;
+    const from = to - 60 * 60 * 24 * 90; // 90 days to ensure enough data
+
+    // Get candles (includes close prices for RSI + Fibonacci)
     const candleRes = await fetch(
       `https://finnhub.io/api/v1/stock/candle?symbol=${ticker}&resolution=D&from=${from}&to=${to}&token=${FINNHUB_KEY}`
     );
     const candle = await candleRes.json();
-    const closes = candle?.c?.filter(Boolean) || [];
 
-    return { price, closes: closes.length > 5 ? closes : [price] };
+    if (candle?.s !== "ok" || !candle?.c?.length) return null;
+
+    const closes = candle.c.filter(Boolean);
+    const price = closes[closes.length - 1]; // Most recent close
+
+    // Also try to get real-time quote for more current price
+    try {
+      const quoteRes = await fetch(
+        `https://finnhub.io/api/v1/quote?symbol=${ticker}&token=${FINNHUB_KEY}`
+      );
+      const quote = await quoteRes.json();
+      const rtPrice = quote?.c;
+      if (rtPrice && rtPrice > 0) {
+        // Use real-time price but keep historical closes for RSI
+        return { price: rtPrice, closes };
+      }
+    } catch {}
+
+    return { price, closes };
   } catch {}
   return null;
 }
@@ -292,4 +302,4 @@ export default function App() {
       </div>
     </div>
   );
-}
+            }
