@@ -1,6 +1,6 @@
 import { useState, useEffect, useCallback, useRef } from "react";
 
-const FINNHUB_KEY = "d8ck3q1r01qidic89rogd8ck3q1r01qidic89rp0";
+const AV_KEY = "4BL8MZL7SPMG5FBP";
 
 const MOONSHOTS = [
   { ticker: "RCAT", name: "Red Cat Holdings",  color: "#ff3d00", sector: "Defense Drones"  },
@@ -36,37 +36,27 @@ const FALLBACK = {
   AGIX:28.50, QTUM:18.20, BAI:50.10, XBI:92.40, UFO:14.80,
 };
 
-// Fetch live price + 60 days candles from Finnhub
+// Cache to avoid hitting API limits
+const priceCache = {};
+
 async function fetchLivePrice(ticker) {
+  // Return cached data if less than 30 min old
+  if (priceCache[ticker] && Date.now() - priceCache[ticker].ts < 30 * 60 * 1000) {
+    return priceCache[ticker].data;
+  }
   try {
-    const to = Math.floor(Date.now() / 1000);
-    const from = to - 60 * 60 * 24 * 90; // 90 days to ensure enough data
-
-    // Get candles (includes close prices for RSI + Fibonacci)
-    const candleRes = await fetch(
-      `https://finnhub.io/api/v1/stock/candle?symbol=${ticker}&resolution=D&from=${from}&to=${to}&token=${FINNHUB_KEY}`
-    );
-    const candle = await candleRes.json();
-
-    if (candle?.s !== "ok" || !candle?.c?.length) return null;
-
-    const closes = candle.c.filter(Boolean);
-    const price = closes[closes.length - 1]; // Most recent close
-
-    // Also try to get real-time quote for more current price
-    try {
-      const quoteRes = await fetch(
-        `https://finnhub.io/api/v1/quote?symbol=${ticker}&token=${FINNHUB_KEY}`
-      );
-      const quote = await quoteRes.json();
-      const rtPrice = quote?.c;
-      if (rtPrice && rtPrice > 0) {
-        // Use real-time price but keep historical closes for RSI
-        return { price: rtPrice, closes };
-      }
-    } catch {}
-
-    return { price, closes };
+    const url = `https://www.alphavantage.co/query?function=TIME_SERIES_DAILY&symbol=${ticker}&outputsize=compact&apikey=${AV_KEY}`;
+    const res = await fetch(url);
+    const json = await res.json();
+    const series = json["Time Series (Daily)"];
+    if (!series) return null;
+    const dates = Object.keys(series).sort().slice(-60);
+    const closes = dates.map(d => parseFloat(series[d]["4. close"])).filter(Boolean);
+    if (closes.length < 2) return null;
+    const price = closes[closes.length - 1];
+    const result = { price, closes };
+    priceCache[ticker] = { data: result, ts: Date.now() };
+    return result;
   } catch {}
   return null;
 }
@@ -87,7 +77,7 @@ function calcFib(price, closes) {
   const hi = Math.max(...all);
   const lo = Math.min(...all);
   const r = hi - lo || price * 0.3;
-  return { hi, lo, f382: hi - 0.382 * r, f500: hi - 0.5 * r, f618: hi - 0.618 * r, f786: hi - 0.786 * r };
+  return { hi, lo, f382: hi-0.382*r, f500: hi-0.5*r, f618: hi-0.618*r, f786: hi-0.786*r };
 }
 
 function buildSignal(price, closes) {
@@ -141,26 +131,35 @@ export default function App() {
   const [openKey,  setOpenKey]  = useState(null);
   const [scanning, setScanning] = useState(false);
   const [autoOn,   setAutoOn]   = useState(false);
+  const [progress, setProgress] = useState(0);
   const timerRef = useRef(null);
 
   const scanAll = useCallback(async () => {
     setScanning(true);
-    const updated = await Promise.all(
-      stocks.map(async s => {
-        const live = await fetchLivePrice(s.ticker);
-        const price  = live?.price  || FALLBACK[s.ticker] || 10;
-        const closes = live?.closes?.length >= 5 ? live.closes : [price];
-        const signal = buildSignal(price, closes);
-        return { ...s, price, closes, signal, live: !!live, updatedAt: new Date() };
-      })
-    );
-    setStocks(updated);
+    setProgress(0);
+    const total = allStocks.length;
+    const updated = [];
+
+    for (let i = 0; i < stocks.length; i++) {
+      const s = stocks[i];
+      // Stagger requests to avoid rate limiting (5 req/min on free tier)
+      if (i > 0) await new Promise(r => setTimeout(r, 13000)); // 13 sec between each
+      const live = await fetchLivePrice(s.ticker);
+      const price  = live?.price  || FALLBACK[s.ticker] || 10;
+      const closes = live?.closes?.length >= 5 ? live.closes : Array(20).fill(price);
+      const signal = buildSignal(price, closes);
+      updated.push({ ...s, price, closes, signal, live: !!live, updatedAt: new Date() });
+      setProgress(Math.round(((i + 1) / total) * 100));
+      setStocks([...updated, ...stocks.slice(i + 1)]);
+    }
+
     setScanning(false);
+    setProgress(100);
   }, [stocks]);
 
   useEffect(() => { scanAll(); }, []); // eslint-disable-line
   useEffect(() => {
-    if (autoOn) timerRef.current = setInterval(scanAll, 5 * 60 * 1000);
+    if (autoOn) timerRef.current = setInterval(scanAll, 30 * 60 * 1000); // 30 min auto
     else clearInterval(timerRef.current);
     return () => clearInterval(timerRef.current);
   }, [autoOn, scanAll]);
@@ -260,7 +259,7 @@ export default function App() {
               </div>
             </div>
             <div style={{ marginTop:5, fontSize:9, color:"#1a1a1a", textAlign:"right", fontFamily:"monospace" }}>
-              {s.live ? "● LIVE via Finnhub" : "~ Estimeret"} · {s.updatedAt?.toLocaleTimeString()}
+              {s.live ? "● LIVE via Alpha Vantage" : "~ Estimeret"} · {s.updatedAt?.toLocaleTimeString()}
             </div>
           </div>
         )}
@@ -274,17 +273,29 @@ export default function App() {
         <div style={{ display:"flex", alignItems:"center", gap:8 }}>
           <div style={{ flex:1 }}>
             <div style={{ fontSize:15, fontWeight:900, color:"#fff" }}>📡 Signal Tracker</div>
-            <div style={{ fontSize:9, color:"#2a2a2a", fontFamily:"monospace" }}>Live priser via Finnhub · Fibonacci · RSI</div>
+            <div style={{ fontSize:9, color:"#2a2a2a", fontFamily:"monospace" }}>
+              {scanning ? `Henter... ${progress}% (${Math.ceil((allStocks.length - Math.round(progress/100*allStocks.length)) * 13 / 60)} min tilbage)` : "Live priser · Fibonacci · RSI"}
+            </div>
           </div>
           <button onClick={() => setAutoOn(a => !a)} style={{ background:autoOn?"#00e67615":"rgba(255,255,255,0.05)", color:autoOn?"#00e676":"#555", border:`1px solid ${autoOn?"#00e67633":"rgba(255,255,255,0.08)"}`, borderRadius:8, padding:"6px 10px", fontSize:11, cursor:"pointer" }}>
             {autoOn ? "⏱ Auto" : "⏱ Off"}
           </button>
           <button onClick={scanAll} disabled={scanning} style={{ background:scanning?"#0a1a0a":"#00e676", color:scanning?"#3a6a3a":"#000", border:"none", borderRadius:8, padding:"6px 14px", fontSize:12, fontWeight:700, cursor:scanning?"default":"pointer" }}>
-            {scanning ? "Henter…" : "⟳ Scan"}
+            {scanning ? `${progress}%` : "⟳ Scan"}
           </button>
         </div>
+        {scanning && (
+          <div style={{ height:2, background:"rgba(255,255,255,0.05)", borderRadius:1, marginTop:8 }}>
+            <div style={{ height:"100%", width:`${progress}%`, background:"#00e676", borderRadius:1, transition:"width 0.5s" }}/>
+          </div>
+        )}
       </div>
       <div style={{ padding:"12px 14px 40px" }}>
+        {scanning && progress === 0 && (
+          <div style={{ background:"#ffd74015", border:"1px solid #ffd74033", borderRadius:10, padding:"12px 14px", marginBottom:16, fontSize:12, color:"#ffd740" }}>
+            ⏳ Henter live data for alle {allStocks.length} aktier... Det tager ca. 4 minutter pga. API begrænsninger. Vent venligst.
+          </div>
+        )}
         <Section emoji="🚀" label="MOONSHOT PICKS"          color="#ff6d00" list={moonshots}/>
         <Section emoji="📈" label="LONG TERM STOCKS"        color="#60a5fa" list={longterm}/>
         <Section emoji="💼" label="ETF FONDE — €2.000 PLAN" color="#ffd740" list={etfList}/>
@@ -298,8 +309,9 @@ export default function App() {
             </div>
           ))}
         </div>
-        <div style={{ fontSize:9, color:"#111", fontStyle:"italic" }}>Live priser via Finnhub · Ikke finansiel rådgivning</div>
+        <div style={{ fontSize:9, color:"#111", fontStyle:"italic" }}>Alpha Vantage · 25 kald/dag gratis · Ikke finansiel rådgivning</div>
       </div>
     </div>
   );
-            }
+                     }
+
