@@ -12,6 +12,7 @@ var MOONSHOTS = [
   { ticker:"IONQ", name:"IonQ",               color:"#ea80fc", sector:"Quantum"         },
   { ticker:"RZLV", name:"Rezolve AI",         color:"#f0abfc", sector:"AI Commerce"     },
   { ticker:"EONR", name:"EON Resources",      color:"#86efac", sector:"Oil and Gas"     },
+  { ticker:"POET", name:"POET Technologies",  color:"#7dd3fc", sector:"AI Photonics"    },
 ];
 var LONGTERM = [
   { ticker:"MSFT", name:"Microsoft",             color:"#60a5fa", sector:"Cloud + AI"     },
@@ -20,6 +21,8 @@ var LONGTERM = [
   { ticker:"TSM",  name:"Taiwan Semiconductor",  color:"#f472b6", sector:"Chip Foundry"   },
   { ticker:"PLTR", name:"Palantir Technologies", color:"#818cf8", sector:"AI / Defense"   },
   { ticker:"SOFI", name:"SoFi Technologies",     color:"#38bdf8", sector:"Digital Banking"},
+  { ticker:"COHR", name:"Coherent Corp.",         color:"#67e8f9", sector:"AI Photonics"  },
+  { ticker:"LASR", name:"nLIGHT Inc.",            color:"#fda4af", sector:"Defense Laser" },
 ];
 var UNDERVALUED = [
   { ticker:"BWMX", name:"Betterware de Mexico", color:"#fb7185", sector:"Consumer Goods" },
@@ -41,9 +44,9 @@ var ALL_STOCKS = [
   ...ETFS.map(function(s)     { return Object.assign({},s,{group:"etf"}); }),
 ];
 
-var FALLBACK = { RCAT:12.70,ACHR:6.78,ERAS:12.20,SMR:11.75,SOUN:8.42,RGTI:18.42,CAN:0.41,MU:116.0,IONQ:63.62,RZLV:2.39,EONR:0.40,MSFT:427.78,NVTS:28.51,PGY:13.96,TSM:424.90,PLTR:143.34,SOFI:15.62,BWMX:17.09,UNH:286.00,LULU:285.00,AGIX:47.24,QTUM:159.10,BAI:50.16,XBI:136.0,UFO:67.81 };
-var TARGETS   = { RCAT:21.75,ACHR:13.20,ERAS:20.30,SMR:21.00,SOUN:13.30,RGTI:18.00,CAN:2.85,MU:165.00,IONQ:50.00,RZLV:12.25,EONR:4.50,MSFT:561.00,NVTS:14.46,PGY:34.50,TSM:468.00,PLTR:194.00,SOFI:21.10,BWMX:29.83,UNH:373.00,LULU:380.00,AGIX:45.00,QTUM:180.00,BAI:60.00,XBI:160.00,UFO:75.00 };
-var EARNINGS  = { RCAT:"Aug 26",ACHR:"Aug 26",ERAS:"Aug 26",SMR:"Aug 26",SOUN:"Aug 26",RGTI:"Aug 26",CAN:"Aug 26",MU:"Jun 26",IONQ:"Aug 26",RZLV:"Aug 26",EONR:"Aug 26",MSFT:"Jul 26",NVTS:"Aug 26",PGY:"Aug 26",TSM:"Jul 26",PLTR:"Aug 26",SOFI:"Jul 26",BWMX:"Aug 26",UNH:"Jul 26",LULU:"Sep 26" };
+var FALLBACK = { RCAT:12.70,ACHR:6.78,ERAS:12.20,SMR:11.75,SOUN:8.42,RGTI:18.42,CAN:0.41,MU:116.0,IONQ:63.62,RZLV:2.39,EONR:0.40,MSFT:427.78,NVTS:28.51,PGY:13.96,TSM:424.90,PLTR:143.34,SOFI:15.62,BWMX:17.09,UNH:286.00,LULU:285.00,COHR:48.00,LASR:67.00,POET:13.50,AGIX:47.24,QTUM:159.10,BAI:50.16,XBI:136.0,UFO:67.81 };
+var TARGETS   = { RCAT:21.75,ACHR:13.20,ERAS:20.30,SMR:21.00,SOUN:13.30,RGTI:18.00,CAN:2.85,MU:165.00,IONQ:50.00,RZLV:12.25,EONR:4.50,MSFT:561.00,NVTS:14.46,PGY:34.50,TSM:468.00,PLTR:194.00,SOFI:21.10,BWMX:29.83,UNH:373.00,LULU:380.00,COHR:65.00,LASR:85.00,POET:8.20,AGIX:45.00,QTUM:180.00,BAI:60.00,XBI:160.00,UFO:75.00 };
+var EARNINGS  = { RCAT:"Aug 26",ACHR:"Aug 26",ERAS:"Aug 26",SMR:"Aug 26",SOUN:"Aug 26",RGTI:"Aug 26",CAN:"Aug 26",MU:"Jun 26",IONQ:"Aug 26",RZLV:"Aug 26",EONR:"Aug 26",MSFT:"Jul 26",NVTS:"Aug 26",PGY:"Aug 26",TSM:"Jul 26",PLTR:"Aug 26",SOFI:"Jul 26",BWMX:"Aug 26",UNH:"Jul 26",LULU:"Sep 26",COHR:"Aug 26",LASR:"Aug 26",POET:"Aug 26" };
 
 async function fetchStock(ticker, range) {
   try {
