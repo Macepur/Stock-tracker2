@@ -10,6 +10,8 @@ const MOONSHOTS = [
   { ticker: "CAN",  name: "Canaan Inc.",        color: "#ffd740", sector: "Bitcoin Mining"   },
   { ticker: "MU",   name: "Micron Technology",  color: "#00d4ff", sector: "AI Memory"        },
   { ticker: "IONQ", name: "IonQ",               color: "#ea80fc", sector: "Quantum"          },
+  { ticker: "RZLV", name: "Rezolve AI",         color: "#f0abfc", sector: "AI Commerce"      },
+  { ticker: "EONR", name: "EON Resources",      color: "#86efac", sector: "Oil & Gas"        },
 ];
 
 const LONGTERM = [
@@ -17,6 +19,7 @@ const LONGTERM = [
   { ticker: "NVTS", name: "Navitas Semiconductor", color: "#34d399", sector: "AI Power Chips" },
   { ticker: "PGY",  name: "Pagaya Technologies",   color: "#fb923c", sector: "AI Fintech"     },
   { ticker: "TSM",  name: "Taiwan Semiconductor",  color: "#f472b6", sector: "Chip Foundry"   },
+  { ticker: "PLTR", name: "Palantir Technologies", color: "#818cf8", sector: "AI / Defense"   },
 ];
 
 const ETFS = [
@@ -32,6 +35,7 @@ const FALLBACK = {
   RGTI:18.42, CAN:0.41, MU:116.0, IONQ:63.62,
   MSFT:427.78, NVTS:28.51, PGY:13.96, TSM:424.90,
   AGIX:47.24, QTUM:159.10, BAI:50.16, XBI:136.0, UFO:67.81,
+  RZLV:2.39, EONR:0.40, PLTR:143.34,
 };
 
 async function fetchStock(ticker) {
