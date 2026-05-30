@@ -321,6 +321,7 @@ export default function App() {
   var [alertBuy,  setAlertBuy]  = useState("");
   var [alertSell, setAlertSell] = useState("");
   var [showAlertLog, setShowAlertLog] = useState(false);
+  var [rankTab,     setRankTab]     = useState("r6");
   var timerRef = useRef(null);
 
   async function scanAll(){
@@ -605,7 +606,7 @@ export default function App() {
           <button onClick={scanAll} disabled={scanning} style={{background:(scanning?"#0a1a0a":"#00e676"),color:(scanning?"#3a6a3a":"#000"),border:"none",borderRadius:8,padding:"6px 14px",fontSize:12,fontWeight:700,cursor:(scanning?"default":"pointer")}}>{scanning?"Henter...":"Scan"}</button>
         </div>
         <div style={{display:"flex",gap:6}}>
-          {[["signals","Entry"],["exit","Exit"],["portfolio","Portfolio"],["alerts","Alerts"]].map(function(t){
+          {[["signals","Entry"],["exit","Exit"],["portfolio","Portfolio"],["alerts","Alerts"],["ranks","Rangliste"]].map(function(t){
             return(<button key={t[0]} onClick={function(){setActiveTab(t[0]);}} style={{background:(activeTab===t[0]?"rgba(255,255,255,0.08)":"transparent"),color:(activeTab===t[0]?"#fff":"#555"),border:"1px solid "+(activeTab===t[0]?"rgba(255,255,255,0.15)":"rgba(255,255,255,0.06)"),borderRadius:20,padding:"5px 14px",fontSize:11,cursor:"pointer",fontWeight:(activeTab===t[0]?700:400)}}>{t[1]}</button>);
           })}
         </div>
@@ -708,6 +709,145 @@ export default function App() {
           {undervalued.map(function(s){return <AlertRow key={s.ticker+"_"+s.group} s={s}/>;}) }
           <SH emoji="💼" label="ETF FONDE"   color="#ffd740" count={etfList.length}/>
           {etfList.map(function(s){return <AlertRow key={s.ticker+"_"+s.group} s={s}/>;}) }
+        </div>
+      ):null}
+
+      {activeTab==="ranks"?(
+        <div style={{padding:"12px 14px 40px"}}>
+
+          <div style={{display:"flex",gap:6,marginBottom:16}}>
+            {[["r6","6 Mdr"],["r12","12 Mdr"],["rlong","Langsigtet"]].map(function(t){
+              return(<button key={t[0]} onClick={function(){setRankTab(t[0]);}}
+                style={{flex:1,background:(rankTab===t[0]?"rgba(255,255,255,0.1)":"rgba(255,255,255,0.03)"),color:(rankTab===t[0]?"#fff":"#555"),border:"1px solid "+(rankTab===t[0]?"rgba(255,255,255,0.2)":"rgba(255,255,255,0.06)"),borderRadius:10,padding:"8px 0",fontSize:12,fontWeight:(rankTab===t[0]?700:400),cursor:"pointer"}}>{t[1]}</button>
+              );
+            })}
+          </div>
+
+          {rankTab==="r6"?(
+            <div>
+              <div style={{background:"rgba(255,107,0,0.08)",border:"1px solid rgba(255,107,0,0.2)",borderRadius:10,padding:"10px 14px",marginBottom:14}}>
+                <div style={{fontSize:10,color:"#ff6d00",fontFamily:"monospace",letterSpacing:1,marginBottom:4}}>6 MAANEDER — Nov 2026</div>
+                <div style={{fontSize:11,color:"#555"}}>Kortsigtede katalysatorer, momentum og tekniske setups</div>
+              </div>
+              {[
+                {rank:1,ticker:"EONR",name:"EON Resources",      upside:"+663%",why:"Boring program i gang, forste bron online Q3",color:"#86efac",risk:"HOJ"},
+                {rank:2,ticker:"RZLV",name:"Rezolve AI",         upside:"+311%",why:"AI commerce, 9/9 analytikere Buy",color:"#f0abfc",risk:"HOJ"},
+                {rank:3,ticker:"ACHR",name:"Archer Aviation",    upside:"+94%", why:"FAA certificering naermer sig",color:"#00e5ff",risk:"HOJ"},
+                {rank:4,ticker:"SMR", name:"NuScale Power",      upside:"+66%", why:"Nuclear renaissance, AI energi",color:"#ffea00",risk:"MEDIUM"},
+                {rank:5,ticker:"RCAT",name:"Red Cat Holdings",   upside:"+50%", why:"Army kontrakter, drone supercycle",color:"#ff3d00",risk:"MEDIUM"},
+                {rank:6,ticker:"SOUN",name:"SoundHound AI",      upside:"+48%", why:"AI voice ekspansion, momentum",color:"#ff6090",risk:"HOJ"},
+                {rank:7,ticker:"POET",name:"POET Technologies",  upside:"+48%", why:"30.000 enheder leveres Q2-Q3",color:"#7dd3fc",risk:"HOJ"},
+                {rank:8,ticker:"LASR",name:"nLIGHT Inc.",        upside:"+27%", why:"Forsvarslaser + AI, revenue +55%",color:"#fda4af",risk:"MEDIUM"},
+                {rank:9,ticker:"COHR",name:"Coherent Corp.",     upside:"+35%", why:"Nvidia $2B investering, CPO",color:"#67e8f9",risk:"MEDIUM"},
+                {rank:10,ticker:"RGTI",name:"Rigetti Computing", upside:"Spec.", why:"Trump $2B quantum investering",color:"#b9f6ca",risk:"HOJ"},
+              ].map(function(s){
+                return(
+                  <div key={s.ticker} style={{display:"flex",alignItems:"center",gap:10,background:"rgba(255,255,255,0.025)",border:"1px solid rgba(255,255,255,0.06)",borderRadius:10,padding:"11px 14px",marginBottom:7}}>
+                    <div style={{fontSize:18,fontWeight:900,color:"#2a2a2a",fontFamily:"monospace",width:28,flexShrink:0}}>#{s.rank}</div>
+                    <div style={{width:8,height:8,borderRadius:"50%",background:s.color,flexShrink:0}}/>
+                    <div style={{flex:1,minWidth:0}}>
+                      <div style={{display:"flex",alignItems:"baseline",gap:8}}>
+                        <span style={{fontSize:13,fontWeight:900,color:s.color,fontFamily:"monospace"}}>{s.ticker}</span>
+                        <span style={{fontSize:10,color:"#444"}}>{s.name}</span>
+                      </div>
+                      <div style={{fontSize:11,color:"#555",marginTop:2}}>{s.why}</div>
+                    </div>
+                    <div style={{textAlign:"right",flexShrink:0}}>
+                      <div style={{fontSize:13,fontWeight:800,color:"#00e676",fontFamily:"monospace"}}>{s.upside}</div>
+                      <div style={{fontSize:9,color:(s.risk==="HOJ"?"#ff5252":s.risk==="MEDIUM"?"#ffd740":"#00e676"),fontFamily:"monospace"}}>{s.risk}</div>
+                    </div>
+                  </div>
+                );
+              })}
+            </div>
+          ):null}
+
+          {rankTab==="r12"?(
+            <div>
+              <div style={{background:"rgba(96,165,250,0.08)",border:"1px solid rgba(96,165,250,0.2)",borderRadius:10,padding:"10px 14px",marginBottom:14}}>
+                <div style={{fontSize:10,color:"#60a5fa",fontFamily:"monospace",letterSpacing:1,marginBottom:4}}>12 MAANEDER — Maj 2027</div>
+                <div style={{fontSize:11,color:"#555"}}>Solid vaekst, fundamentals og katalysatorer</div>
+              </div>
+              {[
+                {rank:1, ticker:"RZLV",name:"Rezolve AI",         upside:"+311%",why:"Omsaetning 0 til $310M, ARR $500M",color:"#f0abfc",risk:"HOJ"},
+                {rank:2, ticker:"EONR",name:"EON Resources",      upside:"+663%",why:"92 brondeprogram, fuld produktion",color:"#86efac",risk:"HOJ"},
+                {rank:3, ticker:"ACHR",name:"Archer Aviation",    upside:"+94%", why:"Forste kommercielle fly i drift",color:"#00e5ff",risk:"HOJ"},
+                {rank:4, ticker:"LULU",name:"Lululemon",          upside:"+42%", why:"Turnaround, ny CEO, Kina vaekst",color:"#a78bfa",risk:"MEDIUM"},
+                {rank:5, ticker:"SMR", name:"NuScale Power",      upside:"+66%", why:"Forste SMR reaktor online",color:"#ffea00",risk:"HOJ"},
+                {rank:6, ticker:"COHR",name:"Coherent Corp.",     upside:"+35%", why:"Silicon photonics mainstream",color:"#67e8f9",risk:"MEDIUM"},
+                {rank:7, ticker:"LASR",name:"nLIGHT Inc.",        upside:"+27%", why:"Defense laser + AI kontrakter",color:"#fda4af",risk:"MEDIUM"},
+                {rank:8, ticker:"RCAT",name:"Red Cat Holdings",   upside:"+50%", why:"NATO drone kontrakter",color:"#ff3d00",risk:"MEDIUM"},
+                {rank:9, ticker:"PLTR",name:"Palantir",           upside:"+24%", why:"AI government kontrakter",color:"#818cf8",risk:"MEDIUM"},
+                {rank:10,ticker:"MSFT",name:"Microsoft",         upside:"+25%", why:"Azure AI vaekst +35%",color:"#60a5fa",risk:"LAV"},
+                {rank:11,ticker:"SOFI",name:"SoFi Technologies", upside:"+16%", why:"Rekord vaekst, insider koeb",color:"#38bdf8",risk:"MEDIUM"},
+                {rank:12,ticker:"MU",  name:"Micron Technology", upside:"HBM",  why:"AI memory shortage fortsaetter",color:"#00d4ff",risk:"MEDIUM"},
+              ].map(function(s){
+                return(
+                  <div key={s.ticker} style={{display:"flex",alignItems:"center",gap:10,background:"rgba(255,255,255,0.025)",border:"1px solid rgba(255,255,255,0.06)",borderRadius:10,padding:"11px 14px",marginBottom:7}}>
+                    <div style={{fontSize:18,fontWeight:900,color:"#2a2a2a",fontFamily:"monospace",width:28,flexShrink:0}}>#{s.rank}</div>
+                    <div style={{width:8,height:8,borderRadius:"50%",background:s.color,flexShrink:0}}/>
+                    <div style={{flex:1,minWidth:0}}>
+                      <div style={{display:"flex",alignItems:"baseline",gap:8}}>
+                        <span style={{fontSize:13,fontWeight:900,color:s.color,fontFamily:"monospace"}}>{s.ticker}</span>
+                        <span style={{fontSize:10,color:"#444"}}>{s.name}</span>
+                      </div>
+                      <div style={{fontSize:11,color:"#555",marginTop:2}}>{s.why}</div>
+                    </div>
+                    <div style={{textAlign:"right",flexShrink:0}}>
+                      <div style={{fontSize:13,fontWeight:800,color:"#00e676",fontFamily:"monospace"}}>{s.upside}</div>
+                      <div style={{fontSize:9,color:(s.risk==="HOJ"?"#ff5252":s.risk==="MEDIUM"?"#ffd740":"#00e676"),fontFamily:"monospace"}}>{s.risk}</div>
+                    </div>
+                  </div>
+                );
+              })}
+            </div>
+          ):null}
+
+          {rankTab==="rlong"?(
+            <div>
+              <div style={{background:"rgba(251,113,133,0.08)",border:"1px solid rgba(251,113,133,0.2)",borderRadius:10,padding:"10px 14px",marginBottom:14}}>
+                <div style={{fontSize:10,color:"#fb7185",fontFamily:"monospace",letterSpacing:1,marginBottom:4}}>LANGSIGTET — 3-5 AAR</div>
+                <div style={{fontSize:11,color:"#555"}}>Strukturelle megatrends og profitabel vaekst</div>
+              </div>
+              {[
+                {rank:1, ticker:"MSFT", name:"Microsoft",          upside:"+100%+",  why:"Dominerer AI enterprise, Copilot",color:"#60a5fa",sector:"AI/Cloud"},
+                {rank:2, ticker:"PLTR", name:"Palantir",           upside:"+150%+",  why:"Bedste AI software til regering",color:"#818cf8",sector:"AI/Defense"},
+                {rank:3, ticker:"COHR", name:"Coherent Corp.",     upside:"+200%+",  why:"CPO bliver standard i datacentre",color:"#67e8f9",sector:"Photonics"},
+                {rank:4, ticker:"IONQ", name:"IonQ",               upside:"+300%+",  why:"Quantum computing kommercialt",color:"#ea80fc",sector:"Quantum"},
+                {rank:5, ticker:"SMR",  name:"NuScale Power",      upside:"+200%+",  why:"AI kraever 10x mere energi",color:"#ffea00",sector:"Nuclear"},
+                {rank:6, ticker:"TSM",  name:"Taiwan Semi",        upside:"+80%",    why:"Verdens eneste 2nm producent",color:"#f472b6",sector:"Chips"},
+                {rank:7, ticker:"ACHR", name:"Archer Aviation",    upside:"+300%+",  why:"$1T marked i 2035",color:"#00e5ff",sector:"Air Taxi"},
+                {rank:8, ticker:"MU",   name:"Micron",             upside:"+100%+",  why:"HBM memory kritisk AI infra",color:"#00d4ff",sector:"AI Memory"},
+                {rank:9, ticker:"LASR", name:"nLIGHT",             upside:"+150%+",  why:"Laser erstatter missiler globalt",color:"#fda4af",sector:"Defense"},
+                {rank:10,ticker:"SOFI", name:"SoFi Technologies",  upside:"+200%+",  why:"Digital bank for Gen Z",color:"#38bdf8",sector:"Fintech"},
+                {rank:11,ticker:"AGIX", name:"Roundhill AI ETF",   upside:"+200%+",  why:"Anthropic + SpaceX eksponering",color:"#00e5ff",sector:"ETF"},
+                {rank:12,ticker:"QTUM", name:"Defiance Quantum",   upside:"+300%+",  why:"Diversificeret quantum exposure",color:"#ea80fc",sector:"ETF"},
+                {rank:13,ticker:"UNH",  name:"UnitedHealth",       upside:"+50%+",   why:"Undervalued, stabil vaekst",color:"#4ade80",sector:"Healthcare"},
+                {rank:14,ticker:"LULU", name:"Lululemon",          upside:"+80%+",   why:"Global vaekst, turnaround",color:"#a78bfa",sector:"Athleisure"},
+              ].map(function(s){
+                return(
+                  <div key={s.ticker} style={{display:"flex",alignItems:"center",gap:10,background:"rgba(255,255,255,0.025)",border:"1px solid rgba(255,255,255,0.06)",borderRadius:10,padding:"11px 14px",marginBottom:7}}>
+                    <div style={{fontSize:18,fontWeight:900,color:"#2a2a2a",fontFamily:"monospace",width:28,flexShrink:0}}>#{s.rank}</div>
+                    <div style={{width:8,height:8,borderRadius:"50%",background:s.color,flexShrink:0}}/>
+                    <div style={{flex:1,minWidth:0}}>
+                      <div style={{display:"flex",alignItems:"baseline",gap:8}}>
+                        <span style={{fontSize:13,fontWeight:900,color:s.color,fontFamily:"monospace"}}>{s.ticker}</span>
+                        <span style={{fontSize:10,color:"#444"}}>{s.name}</span>
+                        <span style={{fontSize:9,color:"#333",background:"rgba(255,255,255,0.05)",padding:"1px 5px",borderRadius:4}}>{s.sector}</span>
+                      </div>
+                      <div style={{fontSize:11,color:"#555",marginTop:2}}>{s.why}</div>
+                    </div>
+                    <div style={{textAlign:"right",flexShrink:0}}>
+                      <div style={{fontSize:13,fontWeight:800,color:"#00e676",fontFamily:"monospace"}}>{s.upside}</div>
+                    </div>
+                  </div>
+                );
+              })}
+              <div style={{background:"rgba(255,255,255,0.02)",border:"1px solid rgba(255,255,255,0.06)",borderRadius:10,padding:"12px 14px",marginTop:8}}>
+                <div style={{fontSize:10,color:"#555",lineHeight:1.7}}>Ranglisterne er baseret paa analyst kursmaal, vaekstpotentiale og fundamentals. Ikke finansiel raadgivning. Opdateres maanedligt.</div>
+              </div>
+            </div>
+          ):null}
         </div>
       ):null}
 
