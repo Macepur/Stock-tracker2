@@ -311,7 +311,7 @@ export default function App() {
               </div>
             </div>
             <div style={{ marginTop:5, fontSize:9, color:"#1a1a1a", textAlign:"right", fontFamily:"monospace" }}>
-              {s.live?"● LIVE":"~ est"} · {s.updatedAt ? s.updatedAt.toLocaleTimeString("da-DK")}
+              {s.live?"● LIVE":"~ est"} · {s.updatedAt ? s.updatedAt.toLocaleTimeString("da-DK") : ""}
             </div>
           </div>
         )}
@@ -350,4 +350,4 @@ export default function App() {
             {/* Price info */}
             <div style={{ textAlign:"right", flexShrink:0, marginRight:4 }}>
               {s.price && <div style={{ fontSize:13, fontWeight:800, color:"#fff", fontFamily:"monospace" }}>${fmt(s.price)}</div>}
-              {buyPrice && <di
+              {buyPrice &
