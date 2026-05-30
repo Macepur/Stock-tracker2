@@ -315,6 +315,12 @@ export default function App() {
   var [editPrice, setEditPrice] = useState("");
   var [editShares,setEditShares]= useState("");
   var [chartStock,setChartStock]= useState(null);
+  var [alerts,    setAlerts]    = useState({});
+  var [alertLog,  setAlertLog]  = useState([]);
+  var [editAlert, setEditAlert] = useState(null);
+  var [alertBuy,  setAlertBuy]  = useState("");
+  var [alertSell, setAlertSell] = useState("");
+  var [showAlertLog, setShowAlertLog] = useState(false);
   var timerRef = useRef(null);
 
   async function scanAll(){
@@ -326,6 +332,26 @@ export default function App() {
       var signal=buildSignal(price,closes,data?data.rsi:null,data?data.macd:null,data?data.macdSignal:null);
       return Object.assign({},s,{price:price,closes:closes,signal:signal,change:data?data.change:null,changePct:data?data.changePct:null,live:!!(data&&data.live),updatedAt:new Date()});
     }));
+    // Check price alerts
+    results.forEach(function(s){
+      var key=s.ticker+"_"+s.group;
+      var al=alerts[key];
+      if(!al||!s.price)return;
+      var now=new Date().toLocaleTimeString("da-DK");
+      if(al.buy&&s.price<=al.buy){
+        setAlertLog(function(prev){
+          return [{id:Date.now(),ticker:s.ticker,type:"KOB",price:s.price,target:al.buy,time:now,color:s.color},...prev].slice(0,50);
+        });
+        // Play sound
+        try{var ctx=new(window.AudioContext||window.webkitAudioContext)();[523,659,784].forEach(function(f,i){var o=ctx.createOscillator(),g=ctx.createGain();o.connect(g);g.connect(ctx.destination);o.frequency.value=f;var t=ctx.currentTime+i*0.15;g.gain.setValueAtTime(0.3,t);g.gain.exponentialRampToValueAtTime(0.001,t+0.4);o.start(t);o.stop(t+0.4);});}catch(e){}
+      }
+      if(al.sell&&s.price>=al.sell){
+        setAlertLog(function(prev){
+          return [{id:Date.now(),ticker:s.ticker,type:"SAELG",price:s.price,target:al.sell,time:now,color:s.color},...prev].slice(0,50);
+        });
+        try{var ctx2=new(window.AudioContext||window.webkitAudioContext)();[784,659,523].forEach(function(f,i){var o=ctx2.createOscillator(),g=ctx2.createGain();o.connect(g);g.connect(ctx2.destination);o.frequency.value=f;var t=ctx2.currentTime+i*0.15;g.gain.setValueAtTime(0.3,t);g.gain.exponentialRampToValueAtTime(0.001,t+0.4);o.start(t);o.stop(t+0.4);});}catch(e){}
+      }
+    });
     setStocks(results);
     setLastScan(new Date());
     setScanning(false);
@@ -339,6 +365,19 @@ export default function App() {
     if(!isNaN(p)&&p>0)setPositions(function(prev){return Object.assign({},prev,{[key]:p});});
     if(!isNaN(s2)&&s2>0)setShares(function(prev){return Object.assign({},prev,{[key]:s2});});
     setEditKey(null);setEditPrice("");setEditShares("");
+  }
+  function saveAlert(key,buy,sell){
+    var b=parseFloat(buy), s2=parseFloat(sell);
+    var al={};
+    if(!isNaN(b)&&b>0) al.buy=b;
+    if(!isNaN(s2)&&s2>0) al.sell=s2;
+    if(al.buy||al.sell){
+      setAlerts(function(prev){return Object.assign({},prev,{[key]:al});});
+    }
+    setEditAlert(null); setAlertBuy(""); setAlertSell("");
+  }
+  function removeAlert(key){
+    setAlerts(function(prev){var n=Object.assign({},prev);delete n[key];return n;});
   }
   function removePosition(key){
     setPositions(function(prev){var n=Object.assign({},prev);delete n[key];return n;});
@@ -499,6 +538,59 @@ export default function App() {
     );
   }
 
+  function AlertRow(props){
+    var s=props.s;
+    var key=s.ticker+"_"+s.group;
+    var al=alerts[key];
+    var isEditing=editAlert===key;
+    var triggered=alertLog.filter(function(l){return l.ticker===s.ticker;}).length>0;
+    return(
+      <div style={{marginBottom:7}}>
+        <div style={{background:(triggered?"#00e67608":"rgba(255,255,255,0.025)"),border:"1px solid "+(triggered?"#00e67633":"rgba(255,255,255,0.07)"),borderRadius:12,padding:"12px 14px"}}>
+          <div style={{display:"flex",alignItems:"center",gap:8}}>
+            <div style={{width:9,height:9,borderRadius:"50%",background:s.color,flexShrink:0}}/>
+            <div style={{flex:1,minWidth:0}}>
+              <div style={{display:"flex",alignItems:"baseline",gap:8}}>
+                <span style={{fontSize:14,fontWeight:900,color:s.color,fontFamily:"monospace"}}>{s.ticker}</span>
+                <span style={{fontSize:10,color:"#444"}}>{s.name}</span>
+                {s.live?<span style={{fontSize:9,color:"#00e676",background:"#00e67615",border:"1px solid #00e67633",padding:"1px 5px",borderRadius:4}}>LIVE</span>:null}
+              </div>
+              <div style={{display:"flex",gap:12,marginTop:4,flexWrap:"wrap"}}>
+                {s.price?<span style={{fontSize:11,color:"#888",fontFamily:"monospace"}}>Nu: ${fmt(s.price)}</span>:null}
+                {al&&al.buy?<span style={{fontSize:11,color:"#69f0ae",fontFamily:"monospace"}}>KOB: ${fmt(al.buy)} {s.price&&s.price<=al.buy?"AKTIV!":""}</span>:null}
+                {al&&al.sell?<span style={{fontSize:11,color:"#ff7043",fontFamily:"monospace"}}>SAELG: ${fmt(al.sell)} {s.price&&s.price>=al.sell?"AKTIV!":""}</span>:null}
+                {!al?<span style={{fontSize:11,color:"#333",fontStyle:"italic"}}>Ingen alert sat</span>:null}
+              </div>
+            </div>
+            <button onClick={function(){setEditAlert(isEditing?null:key);setAlertBuy(al&&al.buy?al.buy.toString():"");setAlertSell(al&&al.sell?al.sell.toString():"");}}
+              style={{background:"rgba(255,255,255,0.06)",border:"1px solid rgba(255,255,255,0.1)",borderRadius:7,padding:"5px 9px",color:"#888",fontSize:11,cursor:"pointer"}}>
+              {isEditing?"X":(al?"Ret":"+ Alert")}
+            </button>
+          </div>
+          {isEditing?(
+            <div style={{marginTop:10,display:"flex",flexDirection:"column",gap:6}}>
+              <div style={{fontSize:10,color:"#555",marginBottom:2}}>Skriv 0 eller lad vaere blank for at slette en alert</div>
+              <div style={{display:"flex",gap:8,alignItems:"center"}}>
+                <span style={{fontSize:11,color:"#69f0ae",fontFamily:"monospace",width:50}}>KOB naar:</span>
+                <input value={alertBuy} onChange={function(e){setAlertBuy(e.target.value);}} placeholder="f.eks. 6.20" type="number" min="0" step="any"
+                  style={{flex:1,background:"rgba(0,230,118,0.07)",border:"1px solid rgba(0,230,118,0.2)",borderRadius:7,padding:"8px 10px",color:"#fff",fontSize:13,fontFamily:"monospace",outline:"none"}}/>
+              </div>
+              <div style={{display:"flex",gap:8,alignItems:"center"}}>
+                <span style={{fontSize:11,color:"#ff7043",fontFamily:"monospace",width:50}}>SAELG naar:</span>
+                <input value={alertSell} onChange={function(e){setAlertSell(e.target.value);}} placeholder="f.eks. 8.50" type="number" min="0" step="any"
+                  style={{flex:1,background:"rgba(255,112,67,0.07)",border:"1px solid rgba(255,112,67,0.2)",borderRadius:7,padding:"8px 10px",color:"#fff",fontSize:13,fontFamily:"monospace",outline:"none"}}/>
+              </div>
+              <div style={{display:"flex",gap:6}}>
+                <button onClick={function(){saveAlert(key,alertBuy,alertSell);}} style={{flex:1,background:"#00e676",color:"#000",border:"none",borderRadius:7,padding:"8px",fontSize:12,fontWeight:700,cursor:"pointer"}}>Gem Alert</button>
+                {al?<button onClick={function(){removeAlert(key);setEditAlert(null);}} style={{background:"rgba(255,82,82,0.15)",color:"#ff5252",border:"1px solid rgba(255,82,82,0.2)",borderRadius:7,padding:"8px 12px",fontSize:12,cursor:"pointer"}}>Slet</button>:null}
+              </div>
+            </div>
+          ):null}
+        </div>
+      </div>
+    );
+  }
+
   return (
     <div style={{minHeight:"100vh",background:"#020408",color:"#ccc",fontFamily:"Georgia, serif",maxWidth:720,margin:"0 auto"}}>
       {chartStock?<BigChart ticker={chartStock.ticker} color={chartStock.color} onClose={function(){setChartStock(null);}}/>:null}
@@ -513,7 +605,7 @@ export default function App() {
           <button onClick={scanAll} disabled={scanning} style={{background:(scanning?"#0a1a0a":"#00e676"),color:(scanning?"#3a6a3a":"#000"),border:"none",borderRadius:8,padding:"6px 14px",fontSize:12,fontWeight:700,cursor:(scanning?"default":"pointer")}}>{scanning?"Henter...":"Scan"}</button>
         </div>
         <div style={{display:"flex",gap:6}}>
-          {[["signals","Entry"],["exit","Exit"],["portfolio","Portfolio"]].map(function(t){
+          {[["signals","Entry"],["exit","Exit"],["portfolio","Portfolio"],["alerts","Alerts"]].map(function(t){
             return(<button key={t[0]} onClick={function(){setActiveTab(t[0]);}} style={{background:(activeTab===t[0]?"rgba(255,255,255,0.08)":"transparent"),color:(activeTab===t[0]?"#fff":"#555"),border:"1px solid "+(activeTab===t[0]?"rgba(255,255,255,0.15)":"rgba(255,255,255,0.06)"),borderRadius:20,padding:"5px 14px",fontSize:11,cursor:"pointer",fontWeight:(activeTab===t[0]?700:400)}}>{t[1]}</button>);
           })}
         </div>
@@ -576,6 +668,46 @@ export default function App() {
               </div>
             </div>);
           })}
+        </div>
+      ):null}
+
+      {activeTab==="alerts"?(
+        <div style={{padding:"12px 14px 40px"}}>
+          <div style={{background:"rgba(255,255,255,0.03)",border:"1px solid rgba(255,255,255,0.08)",borderRadius:10,padding:"12px 14px",marginBottom:16}}>
+            <div style={{fontSize:11,color:"#ffd740",fontFamily:"monospace",marginBottom:5}}>SAADAN BRUGER DU PRICE ALERTS</div>
+            <div style={{fontSize:12,color:"#555",lineHeight:1.7}}>Saet en KOB-pris og/eller SAELG-pris paa hver aktie. Naar Scan korer og prisen rammer dit niveau, lyder der en alarm og det vises i loggen herunder. Slaa Auto til for automatisk scanning hvert 10. min.</div>
+          </div>
+
+          {alertLog.length>0?(
+            <div style={{marginBottom:16}}>
+              <div style={{display:"flex",justifyContent:"space-between",alignItems:"center",marginBottom:8}}>
+                <span style={{fontSize:11,color:"#ffd740",fontFamily:"monospace"}}>ALERT LOG ({alertLog.length})</span>
+                <button onClick={function(){setAlertLog([]);}} style={{background:"none",border:"none",color:"#ff5252",fontSize:11,cursor:"pointer"}}>Ryd</button>
+              </div>
+              {alertLog.slice(0,5).map(function(e){
+                return(
+                  <div key={e.id} style={{display:"flex",alignItems:"center",gap:10,background:(e.type==="KOB"?"rgba(0,230,118,0.08)":"rgba(255,112,67,0.08)"),border:"1px solid "+(e.type==="KOB"?"rgba(0,230,118,0.2)":"rgba(255,112,67,0.2)"),borderRadius:8,padding:"9px 12px",marginBottom:6}}>
+                    <span style={{fontSize:18}}>{e.type==="KOB"?"🔔":"🔔"}</span>
+                    <div style={{flex:1}}>
+                      <span style={{fontSize:13,fontWeight:900,color:e.color,fontFamily:"monospace"}}>{e.ticker}</span>
+                      <span style={{fontSize:11,color:(e.type==="KOB"?"#69f0ae":"#ff7043"),marginLeft:8,fontWeight:700}}>{e.type} ALERT!</span>
+                      <span style={{fontSize:11,color:"#666",marginLeft:8}}>Pris ${fmt(e.price)} ramt maal ${fmt(e.target)}</span>
+                    </div>
+                    <span style={{fontSize:10,color:"#444",fontFamily:"monospace"}}>{e.time}</span>
+                  </div>
+                );
+              })}
+            </div>
+          ):null}
+
+          <SH emoji="🚀" label="MOONSHOTS"   color="#ff6d00" count={moonshots.length}/>
+          {moonshots.map(function(s){return <AlertRow key={s.ticker+"_"+s.group} s={s}/>;}) }
+          <SH emoji="📈" label="LONG TERM"   color="#60a5fa" count={longterm.length}/>
+          {longterm.map(function(s){return <AlertRow key={s.ticker+"_"+s.group} s={s}/>;}) }
+          <SH emoji="💎" label="UNDERVALUED" color="#fb7185" count={undervalued.length}/>
+          {undervalued.map(function(s){return <AlertRow key={s.ticker+"_"+s.group} s={s}/>;}) }
+          <SH emoji="💼" label="ETF FONDE"   color="#ffd740" count={etfList.length}/>
+          {etfList.map(function(s){return <AlertRow key={s.ticker+"_"+s.group} s={s}/>;}) }
         </div>
       ):null}
 
