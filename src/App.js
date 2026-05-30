@@ -72,17 +72,71 @@ function calcMACDLocal(closes){
   var e26=closes.slice(-26).reduce(function(e,v){return v*k26+e*(1-k26);});
   return e12-e26;
 }
+function calcMA(closes,period){
+  if(closes.length<period)return null;
+  var sum=0;
+  for(var i=closes.length-period;i<closes.length;i++)sum+=closes[i];
+  return sum/period;
+}
+function calcBollingerBands(closes,period){
+  period=period||20;
+  if(closes.length<period)return null;
+  var slice=closes.slice(-period);
+  var ma=slice.reduce(function(a,b){return a+b;})/period;
+  var variance=slice.reduce(function(s,v){return s+Math.pow(v-ma,2);},0)/period;
+  var std=Math.sqrt(variance);
+  return{upper:ma+2*std,lower:ma-2*std,mid:ma,std:std};
+}
+function calcMomentum(closes,period){
+  period=period||10;
+  if(closes.length<period+1)return null;
+  var now=closes[closes.length-1];
+  var prev=closes[closes.length-1-period];
+  return prev>0?((now-prev)/prev)*100:null;
+}
 function buildSignal(price,closes,apiRsi,apiMacd,apiMacdSignal){
   var fib=calcFib(price,closes), rng=fib.hi-fib.lo, ret=rng===0?0.5:(fib.hi-price)/rng;
-
-  // Always try to calculate RSI locally if API value is missing
   var RSI=(apiRsi&&apiRsi<97)?Math.round(apiRsi):calcRSI(closes);
-
-  // Calculate MACD locally if API value missing
   var macdVal=(apiMacd!=null)?apiMacd:calcMACDLocal(closes);
   var macdSigVal=(apiMacdSignal!=null)?apiMacdSignal:(macdVal!=null?macdVal*0.85:null);
   var macdBull=(macdVal!=null&&macdSigVal!=null)?macdVal>macdSigVal:null;
 
+  // Bollinger Bands
+  var bb=calcBollingerBands(closes,20);
+  var bbSc=0,bbLbl="BB -";
+  if(bb){
+    if(price<=bb.lower){bbSc=3;bbLbl="BB Undersolgt";}
+    else if(price>=bb.upper){bbSc=-2;bbLbl="BB Oversolgt";}
+    else if(price<bb.mid){bbSc=1;bbLbl="BB Under midten";}
+    else{bbSc=0;bbLbl="BB Over midten";}
+  }
+
+  // MA Cross (20 vs 50)
+  var ma20=calcMA(closes,20), ma50=calcMA(closes,50);
+  var maSc=0,maLbl="MA -";
+  if(ma20&&ma50){
+    var cross=(ma20-ma50)/ma50*100;
+    if(cross>2){maSc=2;maLbl="Golden Cross";}
+    else if(cross>0){maSc=1;maLbl="MA20 > MA50";}
+    else if(cross<-2){maSc=-2;maLbl="Death Cross";}
+    else{maSc=-1;maLbl="MA20 < MA50";}
+  } else if(ma20){
+    maSc=price>ma20?1:-1;
+    maLbl=price>ma20?"Over MA20":"Under MA20";
+  }
+
+  // Momentum (10 dage)
+  var mom=calcMomentum(closes,10);
+  var momSc=0,momLbl="Mom -";
+  if(mom!=null){
+    if(mom>10){momSc=-1;momLbl="Mom +"+mom.toFixed(1)+"% (hoj)";}
+    else if(mom>3){momSc=1;momLbl="Mom +"+mom.toFixed(1)+"% (pos)";}
+    else if(mom>0){momSc=1;momLbl="Mom +"+mom.toFixed(1)+"%";}
+    else if(mom>-5){momSc=1;momLbl="Mom "+mom.toFixed(1)+"% (svag)";}
+    else{momSc=2;momLbl="Mom "+mom.toFixed(1)+"% (dip)";}
+  }
+
+  // Fibonacci
   var fibSc,fibLbl;
   if(ret>=0.60&&ret<=0.65){fibSc=3;fibLbl="61.8% Golden";}
   else if(ret>=0.36&&ret<=0.41){fibSc=2;fibLbl="38.2% Zone";}
@@ -91,9 +145,9 @@ function buildSignal(price,closes,apiRsi,apiMacd,apiMacdSignal){
   else if(ret<0.12){fibSc=-1;fibLbl="Near High";}
   else{fibSc=0;fibLbl="Between levels";}
 
+  // RSI
   var rsiSc,rsiLbl;
   if(!RSI){
-    // No RSI available - use price position relative to range as proxy
     var pricePos=rng===0?0.5:(price-fib.lo)/rng;
     if(pricePos<=0.25){rsiSc=2;rsiLbl="Pris lav i range";}
     else if(pricePos>=0.85){rsiSc=-1;rsiLbl="Pris hoj i range";}
@@ -105,19 +159,20 @@ function buildSignal(price,closes,apiRsi,apiMacd,apiMacdSignal){
   else if(RSI>=62){rsiSc=-1;rsiLbl="RSI "+RSI+" High";}
   else{rsiSc=1;rsiLbl="RSI "+RSI+" Neutral";}
 
+  // MACD
   var macdSc,macdLbl;
   if(macdBull===null){macdSc=0;macdLbl="MACD -";}
   else if(macdBull){macdSc=2;macdLbl="MACD Bullish";}
   else{macdSc=-1;macdLbl="MACD Bearish";}
 
-  var total=fibSc+rsiSc+macdSc;
+  var total=fibSc+rsiSc+macdSc+bbSc+maSc+momSc;
   var action,ac;
-  if(total>=6){action="KOB NU";ac="#00e676";}
-  else if(total>=4){action="KOB SIGNAL";ac="#69f0ae";}
-  else if(total>=2){action="HOLD OJE";ac="#ffd740";}
+  if(total>=10){action="KOB NU";ac="#00e676";}
+  else if(total>=6){action="KOB SIGNAL";ac="#69f0ae";}
+  else if(total>=3){action="HOLD OJE";ac="#ffd740";}
   else if(total>=0){action="VENT";ac="#ff9800";}
   else{action="UNDGA";ac="#ff5252";}
-  return{RSI:RSI,fib:fib,fibSc:fibSc,fibLbl:fibLbl,rsiSc:rsiSc,rsiLbl:rsiLbl,macdSc:macdSc,macdLbl:macdLbl,total:total,action:action,ac:ac};
+  return{RSI:RSI,fib:fib,fibSc:fibSc,fibLbl:fibLbl,rsiSc:rsiSc,rsiLbl:rsiLbl,macdSc:macdSc,macdLbl:macdLbl,bbSc:bbSc,bbLbl:bbLbl,maSc:maSc,maLbl:maLbl,momSc:momSc,momLbl:momLbl,total:total,action:action,ac:ac,bb:bb,ma20:ma20,ma50:ma50};
 }
 function fmt(n){if(n==null)return"-";if(n<1)return n.toFixed(4);if(n<100)return n.toFixed(2);return n.toFixed(1);}
 
@@ -339,22 +394,24 @@ export default function App() {
             <div style={{display:"grid",gridTemplateColumns:"1fr 1fr",gap:12,marginBottom:12}}>
               <div>
                 <div style={{fontSize:9,color:s.color,fontFamily:"monospace",letterSpacing:2,marginBottom:8}}>SIGNALER</div>
-                {[[sig.fibLbl,sig.fibSc,"Fib"],[sig.rsiLbl,sig.rsiSc,"RSI"],[sig.macdLbl,sig.macdSc,"MACD"]].map(function(row,i){
-                  return(<div key={i} style={{display:"flex",justifyContent:"space-between",marginBottom:6}}>
-                    <span style={{fontSize:10,color:"#444",fontFamily:"monospace"}}>{row[2]}</span>
-                    <span style={{fontSize:10,fontFamily:"monospace",color:(row[1]>=2?"#00e676":(row[1]<0?"#ff5252":"#ffd740"))}}>{row[0]} ({row[1]>0?"+":""}{row[1]})</span>
+                {[[sig.fibLbl,sig.fibSc,"Fib"],[sig.rsiLbl,sig.rsiSc,"RSI"],[sig.macdLbl,sig.macdSc,"MACD"],[sig.bbLbl,sig.bbSc,"BB"],[sig.maLbl,sig.maSc,"MA Cross"],[sig.momLbl,sig.momSc,"Momentum"]].map(function(row,i){
+                  return(<div key={i} style={{display:"flex",justifyContent:"space-between",marginBottom:5}}>
+                    <span style={{fontSize:9,color:"#444",fontFamily:"monospace"}}>{row[2]}</span>
+                    <span style={{fontSize:9,fontFamily:"monospace",color:(row[1]>=2?"#00e676":(row[1]<0?"#ff5252":"#ffd740"))}}>{row[0]} ({row[1]>0?"+":""}{row[1]})</span>
                   </div>);
                 })}
                 <div style={{marginTop:10}}>
                   <div style={{display:"flex",justifyContent:"space-between",marginBottom:3}}>
                     <span style={{fontSize:9,color:"#2a2a2a",fontFamily:"monospace"}}>SCORE</span>
-                    <span style={{fontSize:12,fontWeight:800,color:sig.ac,fontFamily:"monospace"}}>{sig.total}/8</span>
+                    <span style={{fontSize:12,fontWeight:800,color:sig.ac,fontFamily:"monospace"}}>{sig.total}/14</span>
                   </div>
                   <div style={{height:4,background:"rgba(255,255,255,0.05)",borderRadius:2}}>
-                    <div style={{height:"100%",width:Math.max(0,Math.min(100,(sig.total/8)*100))+"%",background:sig.ac,borderRadius:2}}/>
+                    <div style={{height:"100%",width:Math.max(0,Math.min(100,(sig.total/14)*100))+"%",background:sig.ac,borderRadius:2}}/>
                   </div>
                 </div>
                 {TARGETS[s.ticker]?(<div style={{marginTop:8,fontSize:10,color:"#ffd740",fontFamily:"monospace"}}>Maal: ${fmt(TARGETS[s.ticker])} <span style={{color:"#555"}}>({((TARGETS[s.ticker]-s.price)/s.price*100).toFixed(1)}% up)</span></div>):null}
+                {sig.bb?(<div style={{marginTop:4,fontSize:9,color:"#555",fontFamily:"monospace"}}>BB: ${fmt(sig.bb.lower)} - ${fmt(sig.bb.upper)}</div>):null}
+                {sig.ma20?(<div style={{marginTop:2,fontSize:9,color:"#555",fontFamily:"monospace"}}>MA20: ${fmt(sig.ma20)}{sig.ma50?" | MA50: $"+fmt(sig.ma50):""}</div>):null}
               </div>
               <div>
                 <div style={{fontSize:9,color:s.color,fontFamily:"monospace",letterSpacing:2,marginBottom:8}}>FIBONACCI</div>
@@ -370,11 +427,11 @@ export default function App() {
             <div style={{background:sig.ac+"0d",border:"1px solid "+sig.ac+"22",borderRadius:8,padding:"10px 12px",marginBottom:8}}>
               <div style={{fontSize:9,color:sig.ac,fontFamily:"monospace",marginBottom:5}}>ENTRY ANBEFALING</div>
               <div style={{fontSize:12,color:"#999",lineHeight:1.75}}>
-                {sig.total>=6?"Staerk signal. Kob naer $"+fmt(sig.fib.f618)+" (61.8%). Stop under $"+fmt(sig.fib.f786)+".":null}
-                {(sig.total>=4&&sig.total<6)?"Godt setup. Vent paa $"+fmt(sig.fib.f618)+"-$"+fmt(sig.fib.f382)+".":null}
-                {(sig.total>=2&&sig.total<4)?"Vent paa tilbagetrak til $"+fmt(sig.fib.f618)+".":null}
-                {(sig.total>=0&&sig.total<2)?"For tidligt. RSI skal under 45.":null}
-                {sig.total<0?"Bearish. Undgaa entry nu.":null}
+                {sig.total>=10?"Staerk confluence. Kob naer $"+fmt(sig.fib.f618)+" (61.8%). Stop under $"+fmt(sig.fib.f786)+".":null}
+                {(sig.total>=6&&sig.total<10)?"Godt setup. Vent paa bekraeftelse ved $"+fmt(sig.fib.f618)+"-$"+fmt(sig.fib.f382)+".":null}
+                {(sig.total>=3&&sig.total<6)?"Neutral. Hold oje - kob ved tilbagetrak til $"+fmt(sig.fib.f618)+".":null}
+                {(sig.total>=0&&sig.total<3)?"For tidligt. Vent paa flere bullish signaler.":null}
+                {sig.total<0?"Bearish confluence. Undgaa entry nu.":null}
               </div>
             </div>
             <div style={{display:"flex",gap:8}}>
