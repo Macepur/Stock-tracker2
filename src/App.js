@@ -137,10 +137,10 @@ export default function App() {
     const results = await Promise.all(
       ALL_STOCKS.map(async s => {
         const data   = await fetchStock(s.ticker);
-        const price  = data?.price  || FALLBACK[s.ticker] || 10;
-        const closes = data?.closes?.length >= 5 ? data.closes : Array(20).fill(price);
-        const signal = buildSignal(price, closes, data?.rsi, data?.macd, data?.macdSignal);
-        return { ...s, price, change: data?.change||null, changePct: data?.changePct||null, signal, live:!!data?.live, updatedAt: new Date() };
+        const price  = data ? data.price : null  || FALLBACK[s.ticker] || 10;
+        const closes = (data && data.closes && data.closes.length >= 5) ? data.closes : Array(20).fill(price);
+        const signal = buildSignal(price, closes, data ? data.rsi : null, data ? data.macd : null, data ? data.macd : nullSignal);
+        return { ...s, price, change: data ? data.change : null||null, changePct: data ? data.change : nullPct||null, signal, live:!!data ? data.live : false, updatedAt: new Date() };
       })
     );
     setStocks(results);
@@ -182,10 +182,10 @@ export default function App() {
     if (!price || !buyPrice) return null;
     const target = ANALYST_TARGETS[s.ticker];
     const pnl = ((price - buyPrice) / buyPrice) * 100;
-    const rsi = s.signal?.RSI;
+    const rsi = s.signal ? s.signal.RSI : null;
 
     // Fibonacci exit levels (resistance = sell zones)
-    const fib = s.signal?.fib;
+    const fib = s.signal ? s.signal.fib : null;
     const nearHigh = fib && Math.abs(price - fib.hi) / fib.hi < 0.03;
     const nearF236 = fib && Math.abs(price - (fib.hi - 0.236*(fib.hi-fib.lo))) / price < 0.03;
 
@@ -311,7 +311,7 @@ export default function App() {
               </div>
             </div>
             <div style={{ marginTop:5, fontSize:9, color:"#1a1a1a", textAlign:"right", fontFamily:"monospace" }}>
-              {s.live?"● LIVE":"~ est"} · {s.updatedAt?.toLocaleTimeString("da-DK")}
+              {s.live?"● LIVE":"~ est"} · {s.updatedAt ? s.updatedAt.toLocaleTimeString("da-DK")}
             </div>
           </div>
         )}
@@ -350,7 +350,4 @@ export default function App() {
             {/* Price info */}
             <div style={{ textAlign:"right", flexShrink:0, marginRight:4 }}>
               {s.price && <div style={{ fontSize:13, fontWeight:800, color:"#fff", fontFamily:"monospace" }}>${fmt(s.price)}</div>}
-              {buyPrice && <div style={{ fontSize:10, color:"#555", fontFamily:"monospace" }}>Købt: ${fmt(buyPrice)}</div>}
-            </div>
-            {/* Edit button */}
-            <butt
+              {buyPrice && <di
