@@ -369,4 +369,84 @@ export default function App() {
               {s.price ? <div style={{ fontSize:13, fontWeight:800, color:"#fff", fontFamily:"monospace" }}>${fmt(s.price)}</div> : null}
               {buyPrice ? <div style={{ fontSize:10, color:"#555", fontFamily:"monospace" }}>Kobt: ${fmt(buyPrice)}</div> : null}
             </div>
-            <button onClick={function() { setEdi
+            <button onClick={function() { setEditKey(isEditing ? null : key); setEditPrice(buyPrice ? buyPrice.toString() : ""); }}
+              style={{ background:"rgba(255,255,255,0.06)", border:"1px solid rgba(255,255,255,0.1)", borderRadius:7, padding:"5px 9px", color:"#888", fontSize:11, cursor:"pointer" }}>
+              {isEditing ? "X" : (buyPrice ? "Ret" : "+ Kob")}
+            </button>
+          </div>
+
+          {isEditing ? (
+            <div style={{ marginTop:10, display:"flex", gap:8 }}>
+              <input value={editPrice} onChange={function(e) { setEditPrice(e.target.value); }} onKeyDown={function(e) { if (e.key === "Enter") { savePosition(key, editPrice); } }}
+                placeholder="Din indkobspris f.eks. 6.50" type="number" min="0.001" step="any"
+                style={{ flex:1, background:"rgba(255,255,255,0.07)", border:"1px solid rgba(255,255,255,0.15)", borderRadius:7, padding:"8px 10px", color:"#fff", fontSize:13, fontFamily:"monospace", outline:"none" }} />
+              <button onClick={function() { savePosition(key, editPrice); }} style={{ background:"#00e676", color:"#000", border:"none", borderRadius:7, padding:"8px 14px", fontSize:12, fontWeight:700, cursor:"pointer" }}>Gem</button>
+              {buyPrice ? <button onClick={function() { removePosition(key); setEditKey(null); }} style={{ background:"rgba(255,82,82,0.15)", color:"#ff5252", border:"1px solid rgba(255,82,82,0.2)", borderRadius:7, padding:"8px 10px", fontSize:12, cursor:"pointer" }}>Slet</button> : null}
+            </div>
+          ) : null}
+
+          {(exit && !isEditing) ? (
+            <div style={{ marginTop:10, fontSize:12, color:"#888", lineHeight:1.7, borderTop:"1px solid rgba(255,255,255,0.05)", paddingTop:8 }}>
+              {exit.recommendation}
+              {exit.target ? <span style={{ color:"#ffd740", marginLeft:4 }}>Analyst maal: ${fmt(exit.target)}</span> : null}
+            </div>
+          ) : null}
+        </div>
+      </div>
+    );
+  }
+
+  return (
+    <div style={{ minHeight:"100vh", background:"#020408", color:"#ccc", fontFamily:"Georgia, serif", maxWidth:720, margin:"0 auto" }}>
+
+      <div style={{ background:"#080c14", borderBottom:"1px solid rgba(255,255,255,0.07)", padding:"12px 14px", position:"sticky", top:0, zIndex:10 }}>
+        <div style={{ display:"flex", alignItems:"center", gap:8, marginBottom:10 }}>
+          <div style={{ flex:1 }}>
+            <div style={{ fontSize:15, fontWeight:900, color:"#fff" }}>Signal Tracker</div>
+            <div style={{ fontSize:9, color:"#2a2a2a", fontFamily:"monospace" }}>
+              {lastScan ? "Opdateret: " + lastScan.toLocaleTimeString("da-DK") : "Tryk Scan for live priser"}
+            </div>
+          </div>
+          <button onClick={toggleAuto} style={{ background:(autoOn ? "#00e67615" : "rgba(255,255,255,0.05)"), color:(autoOn ? "#00e676" : "#555"), border:"1px solid "+(autoOn ? "#00e67633" : "rgba(255,255,255,0.08)"), borderRadius:8, padding:"6px 10px", fontSize:11, cursor:"pointer" }}>
+            {autoOn ? "Auto" : "Off"}
+          </button>
+          <button onClick={scanAll} disabled={scanning} style={{ background:(scanning ? "#0a1a0a" : "#00e676"), color:(scanning ? "#3a6a3a" : "#000"), border:"none", borderRadius:8, padding:"6px 14px", fontSize:12, fontWeight:700, cursor:(scanning ? "default" : "pointer") }}>
+            {scanning ? "Henter..." : "Scan"}
+          </button>
+        </div>
+        <div style={{ display:"flex", gap:6 }}>
+          <button onClick={function() { setActiveTab("signals"); }} style={{ background:(activeTab === "signals" ? "rgba(255,255,255,0.08)" : "transparent"), color:(activeTab === "signals" ? "#fff" : "#555"), border:"1px solid "+(activeTab === "signals" ? "rgba(255,255,255,0.15)" : "rgba(255,255,255,0.06)"), borderRadius:20, padding:"5px 14px", fontSize:11, cursor:"pointer" }}>Entry Signaler</button>
+          <button onClick={function() { setActiveTab("exit"); }} style={{ background:(activeTab === "exit" ? "rgba(255,255,255,0.08)" : "transparent"), color:(activeTab === "exit" ? "#fff" : "#555"), border:"1px solid "+(activeTab === "exit" ? "rgba(255,255,255,0.15)" : "rgba(255,255,255,0.06)"), borderRadius:20, padding:"5px 14px", fontSize:11, cursor:"pointer" }}>Exit Tracker</button>
+        </div>
+      </div>
+
+      {activeTab === "signals" ? (
+        <div style={{ padding:"12px 14px 40px" }}>
+          <SectionHeader emoji="🚀" label="MOONSHOTS" color="#ff6d00" count={moonshots.length} />
+          {moonshots.map(function(s) { return <StockRow key={s.ticker+"_"+s.group} s={s} />; })}
+          <SectionHeader emoji="📈" label="LONG TERM" color="#60a5fa" count={longterm.length} />
+          {longterm.map(function(s) { return <StockRow key={s.ticker+"_"+s.group} s={s} />; })}
+          <SectionHeader emoji="💼" label="ETF FONDE" color="#ffd740" count={etfList.length} />
+          {etfList.map(function(s) { return <StockRow key={s.ticker+"_"+s.group} s={s} />; })}
+        </div>
+      ) : (
+        <div style={{ padding:"12px 14px 40px" }}>
+          <div style={{ background:"rgba(255,255,255,0.03)", border:"1px solid rgba(255,255,255,0.08)", borderRadius:10, padding:"12px 14px", marginBottom:16 }}>
+            <div style={{ fontSize:11, color:"#ffd740", fontFamily:"monospace", marginBottom:5 }}>SAADAN BRUGER DU EXIT TRACKER</div>
+            <div style={{ fontSize:12, color:"#555", lineHeight:1.7 }}>Tryk + Kob ved siden af en aktie og indtast din indkobspris. Appen beregner gevinst/tab og anbefaler hvornaar du boer saelge.</div>
+          </div>
+          <SectionHeader emoji="🚀" label="MOONSHOTS" color="#ff6d00" count={moonshots.length} />
+          {moonshots.map(function(s) { return <ExitRow key={s.ticker+"_"+s.group} s={s} />; })}
+          <SectionHeader emoji="📈" label="LONG TERM" color="#60a5fa" count={longterm.length} />
+          {longterm.map(function(s) { return <ExitRow key={s.ticker+"_"+s.group} s={s} />; })}
+          <SectionHeader emoji="💼" label="ETF FONDE" color="#ffd740" count={etfList.length} />
+          {etfList.map(function(s) { return <ExitRow key={s.ticker+"_"+s.group} s={s} />; })}
+        </div>
+      )}
+
+      <div style={{ background:"#080c14", borderTop:"1px solid rgba(255,255,255,0.05)", padding:"10px 14px", textAlign:"center" }}>
+        <div style={{ fontSize:9, color:"#111", fontStyle:"italic" }}>Live priser via Twelve Data + Finnhub - Ikke finansiel raadgivning</div>
+      </div>
+    </div>
+  );
+}
