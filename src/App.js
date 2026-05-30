@@ -1,4 +1,4 @@
-import { useState, useCallback, useRef } from "react";
+import { useState, useRef, useEffect } from "react";
 
 const MOONSHOTS = [
   { ticker: "RCAT", name: "Red Cat Holdings",  color: "#ff3d00", sector: "Defense Drones"  },
@@ -132,7 +132,7 @@ export default function App() {
   const [editPrice, setEditPrice] = useState("");
   const timerRef = useRef(null);
 
-  const scanAll = useCallback(async () => {
+  const scanAll = async () => {
     setScanning(true);
     const results = await Promise.all(
       ALL_STOCKS.map(async s => {
@@ -146,17 +146,23 @@ export default function App() {
     setStocks(results);
     setLastScan(new Date());
     setScanning(false);
-  }, []);
+  };
 
   const toggleAuto = () => {
     if (!autoOn) {
       setAutoOn(true);
-      timerRef.current = setInterval(scanAll, 10*60*1000);
     } else {
       setAutoOn(false);
       clearInterval(timerRef.current);
     }
   };
+
+  useEffect(() => {
+    if (autoOn) {
+      timerRef.current = setInterval(scanAll, 10*60*1000); // eslint-disable-line
+    }
+    return () => clearInterval(timerRef.current);
+  }, [autoOn]); // eslint-disable-line
 
   const savePosition = (key, price) => {
     const p = parseFloat(price);
@@ -347,5 +353,4 @@ export default function App() {
               {buyPrice && <div style={{ fontSize:10, color:"#555", fontFamily:"monospace" }}>Købt: ${fmt(buyPrice)}</div>}
             </div>
             {/* Edit button */}
-            <button onClick={() => { setEditKey(isEditing ? null : key); setEditPrice(buyPrice?.toString() || ""); }}
-              style={{ background:"rg
+            <butt
