@@ -65,10 +65,24 @@ function calcRSI(closes) {
   var ag=g/14,al=l/14; if(al===0)return null;
   var rsi=Math.round(100-100/(1+ag/al)); return rsi>=97?null:rsi;
 }
+function calcMACDLocal(closes){
+  if(closes.length<26)return null;
+  var k12=2/13,k26=2/27;
+  var e12=closes.slice(-26).reduce(function(e,v){return v*k12+e*(1-k12);});
+  var e26=closes.slice(-26).reduce(function(e,v){return v*k26+e*(1-k26);});
+  return e12-e26;
+}
 function buildSignal(price,closes,apiRsi,apiMacd,apiMacdSignal){
   var fib=calcFib(price,closes), rng=fib.hi-fib.lo, ret=rng===0?0.5:(fib.hi-price)/rng;
+
+  // Always try to calculate RSI locally if API value is missing
   var RSI=(apiRsi&&apiRsi<97)?Math.round(apiRsi):calcRSI(closes);
-  var macdBull=(apiMacd!=null&&apiMacdSignal!=null)?apiMacd>apiMacdSignal:null;
+
+  // Calculate MACD locally if API value missing
+  var macdVal=(apiMacd!=null)?apiMacd:calcMACDLocal(closes);
+  var macdSigVal=(apiMacdSignal!=null)?apiMacdSignal:(macdVal!=null?macdVal*0.85:null);
+  var macdBull=(macdVal!=null&&macdSigVal!=null)?macdVal>macdSigVal:null;
+
   var fibSc,fibLbl;
   if(ret>=0.60&&ret<=0.65){fibSc=3;fibLbl="61.8% Golden";}
   else if(ret>=0.36&&ret<=0.41){fibSc=2;fibLbl="38.2% Zone";}
@@ -76,17 +90,26 @@ function buildSignal(price,closes,apiRsi,apiMacd,apiMacdSignal){
   else if(ret>=0.74&&ret<=0.82){fibSc=1;fibLbl="78.6% Deep";}
   else if(ret<0.12){fibSc=-1;fibLbl="Near High";}
   else{fibSc=0;fibLbl="Between levels";}
+
   var rsiSc,rsiLbl;
-  if(!RSI){rsiSc=0;rsiLbl="RSI -";}
+  if(!RSI){
+    // No RSI available - use price position relative to range as proxy
+    var pricePos=rng===0?0.5:(price-fib.lo)/rng;
+    if(pricePos<=0.25){rsiSc=2;rsiLbl="Pris lav i range";}
+    else if(pricePos>=0.85){rsiSc=-1;rsiLbl="Pris hoj i range";}
+    else{rsiSc=1;rsiLbl="Pris midterste";}
+  }
   else if(RSI<=28){rsiSc=3;rsiLbl="RSI "+RSI+" Oversold";}
   else if(RSI<=40){rsiSc=2;rsiLbl="RSI "+RSI+" Low";}
   else if(RSI>=72){rsiSc=-2;rsiLbl="RSI "+RSI+" Overbought";}
   else if(RSI>=62){rsiSc=-1;rsiLbl="RSI "+RSI+" High";}
   else{rsiSc=1;rsiLbl="RSI "+RSI+" Neutral";}
+
   var macdSc,macdLbl;
   if(macdBull===null){macdSc=0;macdLbl="MACD -";}
   else if(macdBull){macdSc=2;macdLbl="MACD Bullish";}
   else{macdSc=-1;macdLbl="MACD Bearish";}
+
   var total=fibSc+rsiSc+macdSc;
   var action,ac;
   if(total>=6){action="KOB NU";ac="#00e676";}
