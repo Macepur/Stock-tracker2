@@ -577,6 +577,14 @@ export default function App() {
       ):null}
 
       <div style={{background:"#080c14",borderTop:"1px solid rgba(255,255,255,0.05)",padding:"10px 14px",textAlign:"center"}}>
+        <div style={{display:"flex",gap:8,flexWrap:"wrap",justifyContent:"center",marginBottom:6}}>
+          {[["KOB NU","#00e676","10+"],["KOB SIGNAL","#69f0ae","6-9"],["HOLD OJE","#ffd740","3-5"],["VENT","#ff9800","0-2"],["UNDGA","#ff5252","<0"]].map(function(t){
+            return(<div key={t[0]} style={{display:"flex",alignItems:"center",gap:4}}>
+              <div style={{width:6,height:6,borderRadius:"50%",background:t[1]}}/>
+              <span style={{fontSize:9,color:"#333",fontFamily:"monospace"}}>{t[0]} ({t[2]})</span>
+            </div>);
+          })}
+        </div>
         <div style={{fontSize:9,color:"#111",fontStyle:"italic"}}>Live priser - Ikke finansiel raadgivning</div>
       </div>
     </div>
