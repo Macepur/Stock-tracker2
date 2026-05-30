@@ -20,6 +20,7 @@ const LONGTERM = [
   { ticker: "PGY",  name: "Pagaya Technologies",   color: "#fb923c", sector: "AI Fintech"     },
   { ticker: "TSM",  name: "Taiwan Semiconductor",  color: "#f472b6", sector: "Chip Foundry"   },
   { ticker: "PLTR", name: "Palantir Technologies", color: "#818cf8", sector: "AI / Defense"   },
+  { ticker: "SOFI", name: "SoFi Technologies",     color: "#38bdf8", sector: "Digital Banking"  },
 ];
 
 const ETFS = [
@@ -35,7 +36,7 @@ const FALLBACK = {
   RGTI:18.42, CAN:0.41, MU:116.0, IONQ:63.62,
   MSFT:427.78, NVTS:28.51, PGY:13.96, TSM:424.90,
   AGIX:47.24, QTUM:159.10, BAI:50.16, XBI:136.0, UFO:67.81,
-  RZLV:2.39, EONR:0.40, PLTR:143.34,
+  RZLV:2.39, EONR:0.40, PLTR:143.34, SOFI:15.62,
 };
 
 async function fetchStock(ticker) {
@@ -308,4 +309,4 @@ export default function App() {
     </div>
   );
     }
-                  
+                                                                                
