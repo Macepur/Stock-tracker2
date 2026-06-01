@@ -11,13 +11,14 @@ export default async function handler(req, res) {
   if (!ticker) return res.status(400).json({ error: "No ticker" });
 
   // Map range to Twelve Data interval + outputsize
-  // Exchange overrides for ambiguous tickers
+  // Exchange overrides for ambiguous tickers (Twelve Data)
+  var originalTicker = ticker;
   var tickerMap = {
-    "COHR": "COHR:NYSE",
+    "COHR": "COHR",
     "LASR": "LASR:NASDAQ",
     "POET": "POET:NASDAQ",
   };
-  if(tickerMap[ticker]) ticker = tickerMap[ticker];
+  var twelveSymbol = tickerMap[ticker] || ticker;
 
   var interval, outputsize;
   if (range === "day")   { interval = "5min";  outputsize = 78;  }
@@ -27,7 +28,7 @@ export default async function handler(req, res) {
 
   // Try Twelve Data
   try {
-    var url = "https://api.twelvedata.com/time_series?symbol=" + ticker + "&interval=" + interval + "&outputsize=" + outputsize + "&apikey=" + TWELVE_KEY;
+    var url = "https://api.twelvedata.com/time_series?symbol=" + twelveSymbol + "&interval=" + interval + "&outputsize=" + outputsize + "&apikey=" + TWELVE_KEY;
     var r = await fetch(url);
     var d = await r.json();
     if (d.status !== "error" && d.values && d.values.length > 0) {
@@ -49,9 +50,9 @@ export default async function handler(req, res) {
   try {
     var to   = Math.floor(Date.now() / 1000);
     var from = to - 60 * 60 * 24 * 120;
-    var cr = await fetch("https://finnhub.io/api/v1/stock/candle?symbol=" + ticker + "&resolution=D&from=" + from + "&to=" + to + "&token=" + FINNHUB_KEY);
+    var cr = await fetch("https://finnhub.io/api/v1/stock/candle?symbol=" + originalTicker + "&resolution=D&from=" + from + "&to=" + to + "&token=" + FINNHUB_KEY);
     var cd = await cr.json();
-    var qr = await fetch("https://finnhub.io/api/v1/quote?symbol=" + ticker + "&token=" + FINNHUB_KEY);
+    var qr = await fetch("https://finnhub.io/api/v1/quote?symbol=" + originalTicker + "&token=" + FINNHUB_KEY);
     var qd = await qr.json();
     var livePrice = qd && qd.c ? qd.c : null;
     var fhCloses  = (cd && cd.s === "ok") ? cd.c.filter(Boolean) : [];
@@ -68,7 +69,23 @@ export default async function handler(req, res) {
     }
   } catch(e) {}
 
-  return res.status(404).json({ error: "No data for " + ticker });
+  return res.status(404).json({ error: "No data for " + originalTicker });
+}
+
+export async function fetchInsider(req, res) {
+  res.setHeader("Access-Control-Allow-Origin", "*");
+  var ticker = req.query.ticker;
+  if (!ticker) return res.status(400).json({ error: "No ticker" });
+  try {
+    var r = await fetch("https://finnhub.io/api/v1/stock/insider-transactions?symbol=" + ticker + "&token=" + FINNHUB_KEY);
+    var d = await r.json();
+    var transactions = (d && d.data) ? d.data.slice(0, 5) : [];
+    var buys  = transactions.filter(function(t){ return t.transactionCode === "P"; }).length;
+    var sells = transactions.filter(function(t){ return t.transactionCode === "S"; }).length;
+    return res.status(200).json({ buys: buys, sells: sells, transactions: transactions.slice(0,3) });
+  } catch(e) {
+    return res.status(500).json({ error: e.message });
+  }
 }
 
 function calcRSI(closes) {
