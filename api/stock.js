@@ -13,12 +13,13 @@ export default async function handler(req, res) {
   // Map range to Twelve Data interval + outputsize
   // Exchange overrides for ambiguous tickers (Twelve Data)
   var originalTicker = ticker;
+  // These tickers cause wrong results with Twelve Data - use Finnhub only
+  var finnhubOnlyTickers = ["COHR", "LASR"];
   var tickerMap = {
-    "COHR": "COHR",
-    "LASR": "LASR:NASDAQ",
     "POET": "POET:NASDAQ",
   };
   var twelveSymbol = tickerMap[ticker] || ticker;
+  var useFinnhubOnly = finnhubOnlyTickers.indexOf(ticker) !== -1;
 
   var interval, outputsize;
   if (range === "day")   { interval = "5min";  outputsize = 78;  }
@@ -26,8 +27,8 @@ export default async function handler(req, res) {
   else if (range === "year")  { interval = "1week"; outputsize = 52;  }
   else                        { interval = "1day";  outputsize = 60;  }
 
-  // Try Twelve Data
-  try {
+  // Try Twelve Data (skip for some tickers that return wrong data)
+  if(!useFinnhubOnly) try {
     var url = "https://api.twelvedata.com/time_series?symbol=" + twelveSymbol + "&interval=" + interval + "&outputsize=" + outputsize + "&apikey=" + TWELVE_KEY;
     var r = await fetch(url);
     var d = await r.json();
@@ -44,7 +45,7 @@ export default async function handler(req, res) {
         return res.status(200).json({ price:price, closes:closes, times:times, rsi:rsi, macd:macd.macd, macdSignal:macd.macdSignal, change:change, changePct:changePct, live:true, source:"twelve" });
       }
     }
-  } catch(e) {}
+  } catch(e) {} // end if(!useFinnhubOnly)
 
   // Fallback: Finnhub
   try {
