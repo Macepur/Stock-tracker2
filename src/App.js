@@ -539,11 +539,25 @@ export default function App() {
             <div style={{background:sig.ac+"0d",border:"1px solid "+sig.ac+"22",borderRadius:8,padding:"10px 12px",marginBottom:8}}>
               <div style={{fontSize:9,color:sig.ac,fontFamily:"monospace",marginBottom:5}}>ENTRY ANBEFALING</div>
               <div style={{fontSize:12,color:"#999",lineHeight:1.75}}>
-                {sig.total>=10?"Staerk confluence. Kob naer $"+fmt(sig.fib.f618)+" (61.8%). Stop under $"+fmt(sig.fib.f786)+".":null}
-                {(sig.total>=6&&sig.total<10)?"Godt setup. Vent paa bekraeftelse ved $"+fmt(sig.fib.f618)+"-$"+fmt(sig.fib.f382)+".":null}
-                {(sig.total>=3&&sig.total<6)?"Neutral. Hold oje - kob ved tilbagetrak til $"+fmt(sig.fib.f618)+".":null}
-                {(sig.total>=0&&sig.total<3)?"For tidligt. Vent paa flere bullish signaler.":null}
-                {sig.total<0?"Bearish confluence. Undgaa entry nu.":null}
+                {(function(){
+                  var sr=calcSupportResistance(s.closes);
+                  // Find nearest support below current price
+                  var nearestSupport=null;
+                  if(sr&&sr.supports.length>0){
+                    var belowSupports=sr.supports.filter(function(v){return v<s.price*0.99;});
+                    if(belowSupports.length>0) nearestSupport=Math.max.apply(null,belowSupports);
+                  }
+                  // Use nearest support if within 20% of price, else use fib
+                  var entryLevel=nearestSupport&&(s.price-nearestSupport)/s.price<0.20 ? nearestSupport : sig.fib.f618;
+                  var stopLevel=nearestSupport&&nearestSupport>sig.fib.f786 ? sig.fib.f786 : sig.fib.f786;
+                  var pctDown=((s.price-entryLevel)/s.price*100).toFixed(1);
+
+                  if(sig.total>=10) return "Staerk signal. Kob nu eller ved naeste dip til $"+fmt(entryLevel)+" (-"+pctDown+"%). Stop under $"+fmt(stopLevel)+".";
+                  if(sig.total>=6)  return "Godt setup. Vent paa bekraeftelse eller dip til $"+fmt(entryLevel)+" (-"+pctDown+"%).";
+                  if(sig.total>=3)  return "Neutral. Hold oje - ideelt entry ved $"+fmt(entryLevel)+" (-"+pctDown+"% fra nu).";
+                  if(sig.total>=0)  return "For tidligt. Vent paa RSI under 50 og pris naer $"+fmt(entryLevel)+".";
+                  return "Bearish. Undgaa entry. Naeste stoette: $"+fmt(entryLevel)+".";
+                })()}
               </div>
             </div>
             <div style={{display:"flex",gap:8}}>
