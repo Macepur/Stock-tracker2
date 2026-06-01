@@ -322,6 +322,8 @@ export default function App() {
   var [alertSell, setAlertSell] = useState("");
   var [showAlertLog, setShowAlertLog] = useState(false);
   var [rankTab,     setRankTab]     = useState("r6");
+  var [darkMode,    setDarkMode]    = useState(true);
+  var [insiderData, setInsiderData] = useState({});
   var timerRef = useRef(null);
 
   async function scanAll(){
@@ -358,8 +360,25 @@ export default function App() {
     setScanning(false);
   }
 
+  async function fetchInsiders(tickerList){
+    var results = {};
+    for(var i=0; i<tickerList.length; i++){
+      try{
+        var r = await fetch("/api/insider?ticker="+tickerList[i]);
+        if(r.ok){ results[tickerList[i]] = await r.json(); }
+      }catch(e){}
+    }
+    setInsiderData(results);
+  }
+
   function toggleAuto(){ if(!autoOn){setAutoOn(true);}else{setAutoOn(false);clearInterval(timerRef.current);} }
   useEffect(function(){if(autoOn){timerRef.current=setInterval(scanAll,10*60*1000);}return function(){clearInterval(timerRef.current);};},[autoOn]); // eslint-disable-line
+
+  // Fetch insider data once on load
+  useEffect(function(){
+    var tickers = ALL_STOCKS.map(function(s){return s.ticker;});
+    fetchInsiders(tickers);
+  },[]); // eslint-disable-line
 
   function savePosition(key,bp,sh){
     var p=parseFloat(bp),s2=parseFloat(sh);
@@ -393,6 +412,38 @@ export default function App() {
   var portfolioValue=0, portfolioDayChange=0;
   stocks.forEach(function(s){var key=s.ticker+"_"+s.group;var sh=shares[key];if(sh&&s.price){portfolioValue+=sh*s.price;if(s.change)portfolioDayChange+=sh*s.change;}});
 
+  // Support & Resistance calculation
+  function calcSupportResistance(closes){
+    if(!closes||closes.length<10)return null;
+    var recent = closes.slice(-30);
+    var pivots = [];
+    for(var i=2;i<recent.length-2;i++){
+      if(recent[i]>recent[i-1]&&recent[i]>recent[i-2]&&recent[i]>recent[i+1]&&recent[i]>recent[i+2]){
+        pivots.push({type:"R",val:recent[i]});
+      }
+      if(recent[i]<recent[i-1]&&recent[i]<recent[i-2]&&recent[i]<recent[i+1]&&recent[i]<recent[i+2]){
+        pivots.push({type:"S",val:recent[i]});
+      }
+    }
+    var supports    = pivots.filter(function(p){return p.type==="S";}).map(function(p){return p.val;}).sort(function(a,b){return b-a;}).slice(0,2);
+    var resistances = pivots.filter(function(p){return p.type==="R";}).map(function(p){return p.val;}).sort(function(a,b){return a-b;}).slice(0,2);
+    return{supports:supports,resistances:resistances};
+  }
+
+  // Earnings countdown
+  function earningsCountdown(ticker){
+    var monthMap={"Jan":0,"Feb":1,"Mar":2,"Apr":3,"Maj":4,"Jun":5,"Jul":6,"Aug":7,"Sep":8,"Okt":9,"Nov":10,"Dec":11};
+    var e=EARNINGS[ticker]; if(!e)return null;
+    var parts=e.split(" "); if(parts.length<2)return null;
+    var month=monthMap[parts[0]]; if(month===undefined)return null;
+    var year=2000+parseInt(parts[1]);
+    var target=new Date(year,month,15);
+    var now=new Date();
+    var days=Math.round((target-now)/(1000*60*60*24));
+    if(days<0)return null;
+    return days;
+  }
+
   function SH(props){ return (
     <div style={{display:"flex",alignItems:"center",gap:10,margin:"18px 0 10px",padding:"10px 14px",background:props.color+"18",border:"1px solid "+props.color+"44",borderRadius:12}}>
       <span style={{fontSize:22}}>{props.emoji}</span>
@@ -405,7 +456,7 @@ export default function App() {
     var s=props.s, key=s.ticker+"_"+s.group, isOpen=openKey===key, sig=s.signal;
     return (
       <div style={{marginBottom:6}}>
-        <div style={{background:isOpen?(s.color+"0e"):"rgba(255,255,255,0.025)",border:"1px solid "+(isOpen?(s.color+"55"):"rgba(255,255,255,0.07)"),borderRadius:isOpen?"10px 10px 0 0":"10px",padding:"12px 14px"}}>
+        <div style={{background:isOpen?(s.color+"0e"):(darkMode?"rgba(255,255,255,0.025)":"rgba(0,0,0,0.04)"),border:"1px solid "+(isOpen?(s.color+"55"):"rgba(255,255,255,0.07)"),borderRadius:isOpen?"10px 10px 0 0":"10px",padding:"12px 14px"}}>
           <div style={{display:"flex",alignItems:"center",gap:8}}>
             <div style={{width:9,height:9,borderRadius:"50%",background:s.color,flexShrink:0}}/>
             <div style={{flex:1,minWidth:0,cursor:"pointer"}} onClick={function(){setOpenKey(isOpen?null:key);}}>
@@ -413,7 +464,17 @@ export default function App() {
                 <span style={{fontSize:14,fontWeight:900,color:s.color,fontFamily:"monospace"}}>{s.ticker}</span>
                 <span style={{fontSize:10,color:"#444"}}>{s.name}</span>
                 {s.live?<span style={{fontSize:9,color:"#00e676",background:"#00e67615",border:"1px solid #00e67633",padding:"1px 5px",borderRadius:4}}>LIVE</span>:(s.price?<span style={{fontSize:9,color:"#ff9800"}}>est</span>:null)}
-                {EARNINGS[s.ticker]?<span style={{fontSize:9,color:"#fbbf24",background:"#fbbf2415",border:"1px solid #fbbf2433",padding:"1px 5px",borderRadius:4}}>E:{EARNINGS[s.ticker]}</span>:null}
+                {(function(){
+                  var days=earningsCountdown(s.ticker);
+                  if(days===null)return null;
+                  var color=days<=7?"#ff5252":days<=14?"#ffd740":"#fbbf24";
+                  return <span style={{fontSize:9,color:color,background:color+"15",border:"1px solid "+color+"33",padding:"1px 5px",borderRadius:4}}>{days<=7?"E OM "+days+"D!":"E:"+EARNINGS[s.ticker]}</span>;
+                })()}
+                {(function(){
+                  var ins=insiderData[s.ticker];
+                  if(!ins||ins.buys===0)return null;
+                  return <span style={{fontSize:9,color:"#00e676",background:"#00e67615",border:"1px solid #00e67633",padding:"1px 5px",borderRadius:4}}>INSIDER KOB x{ins.buys}</span>;
+                })()}
               </div>
               {sig?(<div style={{display:"flex",alignItems:"center",gap:6,marginTop:3}}>
                 <span style={{fontSize:11,fontWeight:700,color:sig.ac,background:sig.ac+"18",border:"1px solid "+sig.ac+"33",padding:"1px 8px",borderRadius:5}}>{sig.action}</span>
@@ -455,6 +516,14 @@ export default function App() {
                 {TARGETS[s.ticker]?(<div style={{marginTop:8,fontSize:10,color:"#ffd740",fontFamily:"monospace"}}>Maal: ${fmt(TARGETS[s.ticker])} <span style={{color:"#555"}}>({((TARGETS[s.ticker]-s.price)/s.price*100).toFixed(1)}% up)</span></div>):null}
                 {sig.bb?(<div style={{marginTop:4,fontSize:9,color:"#555",fontFamily:"monospace"}}>BB: ${fmt(sig.bb.lower)} - ${fmt(sig.bb.upper)}</div>):null}
                 {sig.ma20?(<div style={{marginTop:2,fontSize:9,color:"#555",fontFamily:"monospace"}}>MA20: ${fmt(sig.ma20)}{sig.ma50?" | MA50: $"+fmt(sig.ma50):""}</div>):null}
+                {(function(){
+                  var sr=calcSupportResistance(s.closes);
+                  if(!sr)return null;
+                  return(<div style={{marginTop:6}}>
+                    {sr.resistances.length>0?<div style={{fontSize:9,color:"#ff7043",fontFamily:"monospace"}}>Modstand: {sr.resistances.map(function(v){return "$"+fmt(v);}).join(" / ")}</div>:null}
+                    {sr.supports.length>0?<div style={{fontSize:9,color:"#69f0ae",fontFamily:"monospace",marginTop:2}}>Stoette: {sr.supports.map(function(v){return "$"+fmt(v);}).join(" / ")}</div>:null}
+                  </div>);
+                })()}
               </div>
               <div>
                 <div style={{fontSize:9,color:s.color,fontFamily:"monospace",letterSpacing:2,marginBottom:8}}>FIBONACCI</div>
@@ -593,15 +662,16 @@ export default function App() {
   }
 
   return (
-    <div style={{minHeight:"100vh",background:"#020408",color:"#ccc",fontFamily:"Georgia, serif",maxWidth:720,margin:"0 auto"}}>
+    <div style={{minHeight:"100vh",background:(darkMode?"#020408":"#f0f2f5"),color:(darkMode?"#ccc":"#1a1a2e"),fontFamily:"Georgia, serif",maxWidth:720,margin:"0 auto"}}>
       {chartStock?<BigChart ticker={chartStock.ticker} color={chartStock.color} onClose={function(){setChartStock(null);}}/>:null}
 
-      <div style={{background:"#080c14",borderBottom:"1px solid rgba(255,255,255,0.07)",padding:"12px 14px",position:"sticky",top:0,zIndex:10}}>
+      <div style={{background:(darkMode?"#080c14":"#ffffff"),borderBottom:"1px solid "+(darkMode?"rgba(255,255,255,0.07)":"rgba(0,0,0,0.1)"),padding:"12px 14px",position:"sticky",top:0,zIndex:10}}>
         <div style={{display:"flex",alignItems:"center",gap:8,marginBottom:10}}>
           <div style={{flex:1}}>
             <div style={{fontSize:15,fontWeight:900,color:"#fff"}}>Signal Tracker</div>
             <div style={{fontSize:9,color:"#2a2a2a",fontFamily:"monospace"}}>{lastScan?"Opdateret: "+lastScan.toLocaleTimeString("da-DK"):"Tryk Scan for live priser"}</div>
           </div>
+          <button onClick={function(){setDarkMode(function(d){return !d;})}} style={{background:"rgba(255,255,255,0.05)",color:"#888",border:"1px solid rgba(255,255,255,0.08)",borderRadius:8,padding:"6px 10px",fontSize:13,cursor:"pointer"}}>{darkMode?"☀":"🌙"}</button>
           <button onClick={toggleAuto} style={{background:(autoOn?"#00e67615":"rgba(255,255,255,0.05)"),color:(autoOn?"#00e676":"#555"),border:"1px solid "+(autoOn?"#00e67633":"rgba(255,255,255,0.08)"),borderRadius:8,padding:"6px 10px",fontSize:11,cursor:"pointer"}}>{autoOn?"Auto":"Off"}</button>
           <button onClick={scanAll} disabled={scanning} style={{background:(scanning?"#0a1a0a":"#00e676"),color:(scanning?"#3a6a3a":"#000"),border:"none",borderRadius:8,padding:"6px 14px",fontSize:12,fontWeight:700,cursor:(scanning?"default":"pointer")}}>{scanning?"Henter...":"Scan"}</button>
         </div>
