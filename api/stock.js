@@ -11,6 +11,14 @@ export default async function handler(req, res) {
   if (!ticker) return res.status(400).json({ error: "No ticker" });
 
   // Map range to Twelve Data interval + outputsize
+  // Exchange overrides for ambiguous tickers
+  var tickerMap = {
+    "COHR": "COHR:NYSE",
+    "LASR": "LASR:NASDAQ",
+    "POET": "POET:NASDAQ",
+  };
+  if(tickerMap[ticker]) ticker = tickerMap[ticker];
+
   var interval, outputsize;
   if (range === "day")   { interval = "5min";  outputsize = 78;  }
   else if (range === "week")  { interval = "1h";    outputsize = 40;  }
