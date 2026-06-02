@@ -354,7 +354,6 @@ export default function App() {
   var [showAlertLog, setShowAlertLog] = useState(false);
   var [rankTab,     setRankTab]     = useState("r6");
   var [infoStock,   setInfoStock]   = useState(null);
-  var [liveTargets, setLiveTargets] = useState({});
   var [darkMode,    setDarkMode]    = useState(true);
   var [insiderData, setInsiderData] = useState({});
   var timerRef = useRef(null);
@@ -393,22 +392,6 @@ export default function App() {
     setScanning(false);
   }
 
-  async function fetchTargets(tickerList){
-    var results = {};
-    for(var i=0; i<tickerList.length; i++){
-      try{
-        var r = await fetch("/api/targets?ticker="+tickerList[i]);
-        if(r.ok){
-          var d = await r.json();
-          if(d && d.mean && d.mean > 0) results[tickerList[i]] = d;
-        }
-      }catch(e){}
-      // 500ms delay between each call to avoid rate limiting
-      await new Promise(function(resolve){ setTimeout(resolve, 500); });
-    }
-    setLiveTargets(function(prev){ return Object.assign({}, prev, results); });
-  }
-
   async function fetchInsiders(tickerList){
     var results = {};
     for(var i=0; i<tickerList.length; i++){
@@ -423,12 +406,10 @@ export default function App() {
   function toggleAuto(){ if(!autoOn){setAutoOn(true);}else{setAutoOn(false);clearInterval(timerRef.current);} }
   useEffect(function(){if(autoOn){timerRef.current=setInterval(scanAll,10*60*1000);}return function(){clearInterval(timerRef.current);};},[autoOn]); // eslint-disable-line
 
-  // Fetch insider data and targets once on load (with delay between them)
+  // Fetch insider data once on load
   useEffect(function(){
     var tickers = ALL_STOCKS.map(function(s){return s.ticker;});
     fetchInsiders(tickers);
-    // Delay targets fetch to avoid overwhelming the API
-    setTimeout(function(){ fetchTargets(tickers); }, 5000);
   },[]); // eslint-disable-line
 
   function savePosition(key,bp,sh){
@@ -464,12 +445,6 @@ export default function App() {
   stocks.forEach(function(s){var key=s.ticker+"_"+s.group;var sh=shares[key];if(sh&&s.price){portfolioValue+=sh*s.price;if(s.change)portfolioDayChange+=sh*s.change;}});
 
   // Support & Resistance calculation
-  function getTarget(ticker){
-    var live = liveTargets[ticker];
-    if(live && live.mean > 0) return live.mean;
-    return getTarget(ticker) || null;
-  }
-
   function calcSupportResistance(closes){
     if(!closes||closes.length<10)return null;
     var recent = closes.slice(-30);
@@ -570,7 +545,7 @@ export default function App() {
                     <div style={{height:"100%",width:Math.max(0,Math.min(100,(sig.total/14)*100))+"%",background:sig.ac,borderRadius:2}}/>
                   </div>
                 </div>
-                {(function(){ var t=getTarget(s.ticker); if(!t||!s.price)return null; var live=liveTargets[s.ticker]; return(<div style={{marginTop:8,fontSize:10,color:(live?"#00e676":"#ffd740"),fontFamily:"monospace"}}>Maal: ${fmt(t)}{live?" LIVE":""} <span style={{color:(t>s.price?"#69f0ae":"#ff5252")}}>({((t-s.price)/s.price*100).toFixed(1)}% {t>s.price?"up":"down"})</span>{live&&live.count?<span style={{color:"#444",marginLeft:4}}>{live.count} analytikere</span>:null}</div>); })()}
+                {TARGETS[s.ticker]&&s.price?<div style={{marginTop:8,fontSize:10,color:"#ffd740",fontFamily:"monospace"}}>Maal: ${fmt(TARGETS[s.ticker])} <span style={{color:(TARGETS[s.ticker]>s.price?"#69f0ae":"#ff5252")}}>({((TARGETS[s.ticker]-s.price)/s.price*100).toFixed(1)}% {TARGETS[s.ticker]>s.price?"up":"down"})</span></div>:null}
                 {sig.bb?(<div style={{marginTop:4,fontSize:9,color:"#555",fontFamily:"monospace"}}>BB: ${fmt(sig.bb.lower)} - ${fmt(sig.bb.upper)}</div>):null}
                 {sig.ma20?(<div style={{marginTop:2,fontSize:9,color:"#555",fontFamily:"monospace"}}>MA20: ${fmt(sig.ma20)}{sig.ma50?" | MA50: $"+fmt(sig.ma50):""}</div>):null}
                 {(function(){
@@ -631,7 +606,7 @@ export default function App() {
   function ExitRow(props){
     var s=props.s, key=s.ticker+"_"+s.group, bp=positions[key], sh=shares[key];
     var sig=s.signal, rsi=sig?sig.RSI:null, fib=sig?sig.fib:null;
-    var exit=(s.price&&bp)?getExitSignal(s.price,bp,rsi,fib,getTarget(s.ticker)):null;
+    var exit=(s.price&&bp)?getExitSignal(s.price,bp,rsi,fib,TARGETS[s.ticker]):null;
     var isEditing=editKey===key;
     var totalVal=(sh&&s.price)?sh*s.price:null, dayChg=(sh&&s.change)?sh*s.change:null;
     return(
@@ -1067,8 +1042,8 @@ export default function App() {
                       <div style={{display:"flex",alignItems:"center",gap:8}}>
                         <div style={{textAlign:"right"}}>
                           {s.price?<div style={{fontSize:12,fontWeight:700,color:(s.changePct==null?"#fff":(s.changePct>=0?"#00e676":"#ff5252")),fontFamily:"monospace"}}>${fmt(s.price)}</div>:null}
-                          {(function(){ var t=getTarget(s.ticker); if(!t)return null; var isLive=liveTargets&&liveTargets[s.ticker]; return <div style={{fontSize:10,color:(isLive?"#00e676":"#ffd740"),fontFamily:"monospace"}}>Maal: ${fmt(t)}{isLive?" LIVE":""}</div>; })()}
-                          {(function(){ var t=getTarget(s.ticker); if(!t||!s.price)return null; var pct=((t-s.price)/s.price*100); return <div style={{fontSize:9,color:(pct>=0?"#69f0ae":"#ff5252"),fontFamily:"monospace"}}>{pct>=0?"+":""}{pct.toFixed(1)}%</div>; })()}
+                          {TARGETS[s.ticker]?<div style={{fontSize:10,color:"#ffd740",fontFamily:"monospace"}}>Maal: ${fmt(TARGETS[s.ticker])}</div>:null}
+                          {(TARGETS[s.ticker]&&s.price)?<div style={{fontSize:9,color:(TARGETS[s.ticker]>=s.price?"#69f0ae":"#ff5252"),fontFamily:"monospace"}}>{TARGETS[s.ticker]>=s.price?"+":""}{((TARGETS[s.ticker]-s.price)/s.price*100).toFixed(1)}%</div>:null}
                         </div>
                         {info?<span style={{fontSize:9,color:info.rating.indexOf("Strong")!==-1?"#00e676":"#69f0ae",background:"rgba(0,230,118,0.08)",padding:"2px 7px",borderRadius:5}}>{info.rating}</span>:null}
                         <span style={{fontSize:12,color:"#333"}}>{isSelected?"^":">"}</span>
