@@ -1040,7 +1040,11 @@ export default function App() {
                         <span style={{fontSize:10,color:"#444",marginLeft:8}}>{info?info.fullName:s.name}</span>
                       </div>
                       <div style={{display:"flex",alignItems:"center",gap:8}}>
-                        {info?<span style={{fontSize:10,color:"#ffd740",fontFamily:"monospace"}}>${fmt(info.target)}</span>:null}
+                        <div style={{textAlign:"right"}}>
+                          {s.price?<div style={{fontSize:12,fontWeight:700,color:(s.changePct==null?"#fff":(s.changePct>=0?"#00e676":"#ff5252")),fontFamily:"monospace"}}>${fmt(s.price)}</div>:null}
+                          {info?<div style={{fontSize:10,color:"#ffd740",fontFamily:"monospace"}}>Maal: ${fmt(info.target)}</div>:null}
+                          {s.price&&info?<div style={{fontSize:9,color:"#555",fontFamily:"monospace"}}>{((info.target-s.price)/s.price*100).toFixed(1)}% up</div>:null}
+                        </div>
                         {info?<span style={{fontSize:9,color:info.rating.includes("Strong")?"#00e676":"#69f0ae",background:"rgba(0,230,118,0.08)",padding:"2px 7px",borderRadius:5}}>{info.rating}</span>:null}
                         <span style={{fontSize:12,color:"#333"}}>{isSelected?"^":">"}</span>
                       </div>
