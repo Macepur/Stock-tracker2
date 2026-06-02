@@ -1067,10 +1067,10 @@ export default function App() {
                       <div style={{display:"flex",alignItems:"center",gap:8}}>
                         <div style={{textAlign:"right"}}>
                           {s.price?<div style={{fontSize:12,fontWeight:700,color:(s.changePct==null?"#fff":(s.changePct>=0?"#00e676":"#ff5252")),fontFamily:"monospace"}}>${fmt(s.price)}</div>:null}
-                          {(function(){ var t=getTarget(s.ticker); return t?<div style={{fontSize:10,color:(liveTargets[s.ticker]?"#00e676":"#ffd740"),fontFamily:"monospace"}}>Maal: ${fmt(t)}{liveTargets[s.ticker]?" LIVE":""}</div>:null; })()}
-                          {(function(){ var t=getTarget(s.ticker); return (s.price&&t)?<div style={{fontSize:9,color:(t>s.price?"#69f0ae":"#ff5252"),fontFamily:"monospace"}}>{((t-s.price)/s.price*100).toFixed(1)}% {t>s.price?"up":"down"}</div>:null; })()}
+                          {(function(){ var t=getTarget(s.ticker); if(!t)return null; var isLive=liveTargets&&liveTargets[s.ticker]; return <div style={{fontSize:10,color:(isLive?"#00e676":"#ffd740"),fontFamily:"monospace"}}>Maal: ${fmt(t)}{isLive?" LIVE":""}</div>; })()}
+                          {(function(){ var t=getTarget(s.ticker); if(!t||!s.price)return null; var pct=((t-s.price)/s.price*100); return <div style={{fontSize:9,color:(pct>=0?"#69f0ae":"#ff5252"),fontFamily:"monospace"}}>{pct>=0?"+":""}{pct.toFixed(1)}%</div>; })()}
                         </div>
-                        {info?<span style={{fontSize:9,color:info.rating.includes("Strong")?"#00e676":"#69f0ae",background:"rgba(0,230,118,0.08)",padding:"2px 7px",borderRadius:5}}>{info.rating}</span>:null}
+                        {info?<span style={{fontSize:9,color:info.rating.indexOf("Strong")!==-1?"#00e676":"#69f0ae",background:"rgba(0,230,118,0.08)",padding:"2px 7px",borderRadius:5}}>{info.rating}</span>:null}
                         <span style={{fontSize:12,color:"#333"}}>{isSelected?"^":">"}</span>
                       </div>
                     </div>
