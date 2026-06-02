@@ -400,13 +400,13 @@ export default function App() {
         var r = await fetch("/api/targets?ticker="+tickerList[i]);
         if(r.ok){
           var d = await r.json();
-          if(d && d.mean > 0) results[tickerList[i]] = d;
+          if(d && d.mean && d.mean > 0) results[tickerList[i]] = d;
         }
       }catch(e){}
-      // Small delay to avoid rate limiting
-      if(i < tickerList.length-1) await new Promise(function(r){ setTimeout(r, 200); });
+      // 500ms delay between each call to avoid rate limiting
+      await new Promise(function(resolve){ setTimeout(resolve, 500); });
     }
-    setLiveTargets(results);
+    setLiveTargets(function(prev){ return Object.assign({}, prev, results); });
   }
 
   async function fetchInsiders(tickerList){
@@ -423,11 +423,12 @@ export default function App() {
   function toggleAuto(){ if(!autoOn){setAutoOn(true);}else{setAutoOn(false);clearInterval(timerRef.current);} }
   useEffect(function(){if(autoOn){timerRef.current=setInterval(scanAll,10*60*1000);}return function(){clearInterval(timerRef.current);};},[autoOn]); // eslint-disable-line
 
-  // Fetch insider data and targets once on load
+  // Fetch insider data and targets once on load (with delay between them)
   useEffect(function(){
     var tickers = ALL_STOCKS.map(function(s){return s.ticker;});
     fetchInsiders(tickers);
-    fetchTargets(tickers);
+    // Delay targets fetch to avoid overwhelming the API
+    setTimeout(function(){ fetchTargets(tickers); }, 5000);
   },[]); // eslint-disable-line
 
   function savePosition(key,bp,sh){
