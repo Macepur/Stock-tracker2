@@ -2,7 +2,7 @@ var FINNHUB_KEY = "d8ck3q1r01qidic89rogd8ck3q1r01qidic89rp0";
 
 export default async function handler(req, res) {
   res.setHeader("Access-Control-Allow-Origin", "*");
-  res.setHeader("Cache-Control", "s-maxage=3600"); // cache 1 hour
+  res.setHeader("Cache-Control", "no-store");
 
   var { ticker } = req.query;
   if (!ticker) return res.status(400).json({ error: "No ticker" });
