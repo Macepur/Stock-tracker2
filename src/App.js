@@ -9,7 +9,7 @@ var STOCK_INFO = {
   RGTI:{fullName:"Rigetti Computing",desc:"Quantum computing virksomhed der bygger superconducting quantum processorer. Tilbyder cloud-baseret quantum via Quantum Cloud Services platform.",bull:"Trump-administrationen annoncerede $2B quantum investering. En af de faa rene quantum-plays. Teknologien loser problemer umulige for klassiske computere.",bear:"Quantum er stadig tidlig fase. Hoj burn rate. Konkurrence fra IBM og Google.",catalysts:["US Government $2B program","Nyt 84-qubit chip","Enterprise kontrakter"],target:18.00,sector:"Quantum Computing",mcap:"~$3B",pe:"N/A",rating:"Speculative Buy",analysts:5},
   CAN:{fullName:"Canaan Inc.",desc:"En af verdens stoerste producenter af Bitcoin mining hardware. Saelger Avalon miners globalt og har startet self-mining.",bull:"Bitcoin halving reducerede udbud. Bitcoin over $100K ville eksplodere profitterne. Ekstremt billig under $1.",bear:"Totalt afhaengig af Bitcoin pris. Kinesisk selskab med geopolitisk risiko.",catalysts:["Bitcoin over $100K","Naeste halvering 2028","Self-mining ekspansion"],target:2.85,sector:"Krypto / Bitcoin Mining",mcap:"~$80M",pe:"N/A",rating:"Buy",analysts:7},
   MU:{fullName:"Micron Technology",desc:"Verdens storste DRAM og NAND flash memory producent. Kritisk eksponeret mod AI via High Bandwidth Memory (HBM) som er essentielt for Nvidia AI chips. HBM giver 3-5x hoejere fortjeneste.",bull:"HBM marked vaekster fra $35B til $100B. En af kun 3 HBM producenter. EPS-vaekst +651%. Forward P/E 9.4x - ekstremt billig.",bear:"Halvleder cyklusser er brutale. Overcapacity risiko. Geopolitisk Taiwan-risiko.",catalysts:["HBM3E leverancer til Nvidia","AI datacenter ekspansion","PC/Smartphone opsving"],target:165.00,sector:"Halvledere / AI Memory",mcap:"~$95B",pe:"9.4x forward",rating:"Strong Buy",analysts:28},
-  IONQ:{fullName:"IonQ",desc:"Verdens forste borsnoterede rene quantum computing virksomhed. Bruger trapped-ion teknologi som er mere praecis end superconducting quantum. Amazon Web Services er stoerste partner.",bull:"Trapped-ion er teknologisk overlegen. AWS partnership naer millioner af virksomheder. Regering kontrakter. $450B marked i 2030.",bear:"Kommerciel quantum nytte er stadig vaek. Hoj burn rate.",catalysts:["Nyt 64-qubit system","AWS expansion","Government kontrakter"],target:50.00,sector:"Quantum Computing",mcap:"~$7B",pe:"N/A",rating:"Buy",analysts:9},
+  IONQ:{fullName:"IonQ",desc:"Verdens forste borsnoterede rene quantum computing virksomhed. Bruger trapped-ion teknologi som er mere praecis end superconducting quantum. Amazon Web Services er stoerste partner.",bull:"Trapped-ion er teknologisk overlegen. AWS partnership naer millioner af virksomheder. Regering kontrakter. $450B marked i 2030.",bear:"Kommerciel quantum nytte er stadig vaek. Hoj burn rate.",catalysts:["Nyt 64-qubit system","AWS expansion","Government kontrakter"],target:68.25,sector:"Quantum Computing",mcap:"~$7B",pe:"N/A",rating:"Buy",analysts:9},
   RZLV:{fullName:"Rezolve AI",desc:"AI-drevet commerce platform der forbinder brands med forbrugere via mobil shopping. Bruger generativ AI til personalisering med Google og Microsoft Azure partnerskaber.",bull:"9/9 analytikere giver Buy. Revenue fra nul til $310M i 2026. ARR target $500M. Google og Microsoft validerer teknologien.",bear:"Aktien faldet 42% YTD. Vaekst delvist fra opkoeb. Ikke profitabelt.",catalysts:["Q2/Q3 2026 revenue","Nye enterprise kontrakter","Google expansion"],target:12.25,sector:"AI / E-commerce",mcap:"~$500M",pe:"N/A",rating:"Strong Buy",analysts:9},
   EONR:{fullName:"EON Resources",desc:"Lille olie og gas selskab med ambitiost 92-brondes boring-program i USA. Forste nye brondes forventes online midt 2026. Insiders har kobt over 1.5M aktier.",bull:"D. Boral Capital kursmaal $4.50 = +1000% upside. Insider koeb paa 1.5M aktier. 92-brondes program kan transformere selskabet.",bear:"Kun 1 analytiker. Afhaengig af oliepriser. Hoj eksekveringsrisiko.",catalysts:["Forste brondes online Q3 2026","Oliepris over $90","Opkoebs interesse"],target:4.50,sector:"Olie og Gas",mcap:"~$30M",pe:"N/A",rating:"Buy",analysts:1},
   POET:{fullName:"POET Technologies",desc:"Udvikler revolutionaere fotonic chips der integrerer lys og elektronik paa samme chip. Nvidia investerede $6.5B i fotonics maj 2026. POET er en early-stage moonshot i dette rum.",bull:"Nvidia $6.5B fotonics investering. 30.000 enheder leveres 2026. Partnerskaber med LITEON og Lessenger. Hyperscaler interesse.",bear:"Meget lille selskab. Aktien allerede steget 315% og er foran analyst maalene.",catalysts:["30.000 leverancer 2026","Hyperscaler partnerskab","Nvidia indirekte eksponering"],target:8.20,sector:"AI Fotonics",mcap:"~$500M",pe:"N/A",rating:"Speculative Buy",analysts:2},
@@ -76,7 +76,7 @@ var ALL_STOCKS = [
 ];
 
 var FALLBACK = { RCAT:12.70,ACHR:6.78,ERAS:12.20,SMR:11.75,SOUN:8.42,RGTI:18.42,CAN:0.41,MU:116.0,IONQ:63.62,RZLV:2.39,EONR:0.40,MSFT:427.78,NVTS:28.51,PGY:13.96,TSM:424.90,PLTR:143.34,SOFI:15.62,BWMX:17.09,UNH:286.00,LULU:285.00,COHR:354.00,LASR:70.00,POET:14.00,AGIX:47.24,QTUM:159.10,BAI:50.16,XBI:136.0,UFO:67.81 };
-var TARGETS   = { RCAT:21.75,ACHR:13.20,ERAS:20.30,SMR:21.00,SOUN:13.30,RGTI:18.00,CAN:2.85,MU:165.00,IONQ:50.00,RZLV:12.25,EONR:4.50,MSFT:561.00,NVTS:14.46,PGY:34.50,TSM:468.00,PLTR:194.00,SOFI:21.10,BWMX:29.83,UNH:373.00,LULU:380.00,COHR:400.00,LASR:85.00,POET:8.20,AGIX:45.00,QTUM:180.00,BAI:60.00,XBI:160.00,UFO:75.00 };
+var TARGETS   = { RCAT:21.25,ACHR:13.20,ERAS:20.30,SMR:21.00,SOUN:13.30,RGTI:30.38,CAN:2.85,MU:1100.00,IONQ:68.25,RZLV:12.25,EONR:4.50,MSFT:561.00,NVTS:14.46,PGY:34.50,TSM:468.00,PLTR:194.00,SOFI:21.10,BWMX:29.83,UNH:373.00,LULU:380.00,COHR:400.00,LASR:85.00,POET:5.83,AGIX:45.00,QTUM:180.00,BAI:60.00,XBI:160.00,UFO:75.00 };
 var EARNINGS  = { RCAT:"Aug 26",ACHR:"Aug 26",ERAS:"Aug 26",SMR:"Aug 26",SOUN:"Aug 26",RGTI:"Aug 26",CAN:"Aug 26",MU:"Jun 26",IONQ:"Aug 26",RZLV:"Aug 26",EONR:"Aug 26",MSFT:"Jul 26",NVTS:"Aug 26",PGY:"Aug 26",TSM:"Jul 26",PLTR:"Aug 26",SOFI:"Jul 26",BWMX:"Aug 26",UNH:"Jul 26",LULU:"Sep 26",COHR:"Aug 26",LASR:"Aug 26",POET:"Aug 26" };
 
 async function fetchStock(ticker, range) {
@@ -354,6 +354,7 @@ export default function App() {
   var [showAlertLog, setShowAlertLog] = useState(false);
   var [rankTab,     setRankTab]     = useState("r6");
   var [infoStock,   setInfoStock]   = useState(null);
+  var [liveTargets, setLiveTargets] = useState({});
   var [darkMode,    setDarkMode]    = useState(true);
   var [insiderData, setInsiderData] = useState({});
   var timerRef = useRef(null);
@@ -392,6 +393,22 @@ export default function App() {
     setScanning(false);
   }
 
+  async function fetchTargets(tickerList){
+    var results = {};
+    for(var i=0; i<tickerList.length; i++){
+      try{
+        var r = await fetch("/api/targets?ticker="+tickerList[i]);
+        if(r.ok){
+          var d = await r.json();
+          if(d && d.mean > 0) results[tickerList[i]] = d;
+        }
+      }catch(e){}
+      // Small delay to avoid rate limiting
+      if(i < tickerList.length-1) await new Promise(function(r){ setTimeout(r, 200); });
+    }
+    setLiveTargets(results);
+  }
+
   async function fetchInsiders(tickerList){
     var results = {};
     for(var i=0; i<tickerList.length; i++){
@@ -406,10 +423,11 @@ export default function App() {
   function toggleAuto(){ if(!autoOn){setAutoOn(true);}else{setAutoOn(false);clearInterval(timerRef.current);} }
   useEffect(function(){if(autoOn){timerRef.current=setInterval(scanAll,10*60*1000);}return function(){clearInterval(timerRef.current);};},[autoOn]); // eslint-disable-line
 
-  // Fetch insider data once on load
+  // Fetch insider data and targets once on load
   useEffect(function(){
     var tickers = ALL_STOCKS.map(function(s){return s.ticker;});
     fetchInsiders(tickers);
+    fetchTargets(tickers);
   },[]); // eslint-disable-line
 
   function savePosition(key,bp,sh){
@@ -445,6 +463,12 @@ export default function App() {
   stocks.forEach(function(s){var key=s.ticker+"_"+s.group;var sh=shares[key];if(sh&&s.price){portfolioValue+=sh*s.price;if(s.change)portfolioDayChange+=sh*s.change;}});
 
   // Support & Resistance calculation
+  function getTarget(ticker){
+    var live = liveTargets[ticker];
+    if(live && live.mean > 0) return live.mean;
+    return getTarget(ticker) || null;
+  }
+
   function calcSupportResistance(closes){
     if(!closes||closes.length<10)return null;
     var recent = closes.slice(-30);
@@ -545,7 +569,7 @@ export default function App() {
                     <div style={{height:"100%",width:Math.max(0,Math.min(100,(sig.total/14)*100))+"%",background:sig.ac,borderRadius:2}}/>
                   </div>
                 </div>
-                {TARGETS[s.ticker]?(<div style={{marginTop:8,fontSize:10,color:"#ffd740",fontFamily:"monospace"}}>Maal: ${fmt(TARGETS[s.ticker])} <span style={{color:"#555"}}>({((TARGETS[s.ticker]-s.price)/s.price*100).toFixed(1)}% up)</span></div>):null}
+                {(function(){ var t=getTarget(s.ticker); if(!t||!s.price)return null; var live=liveTargets[s.ticker]; return(<div style={{marginTop:8,fontSize:10,color:(live?"#00e676":"#ffd740"),fontFamily:"monospace"}}>Maal: ${fmt(t)}{live?" LIVE":""} <span style={{color:(t>s.price?"#69f0ae":"#ff5252")}}>({((t-s.price)/s.price*100).toFixed(1)}% {t>s.price?"up":"down"})</span>{live&&live.count?<span style={{color:"#444",marginLeft:4}}>{live.count} analytikere</span>:null}</div>); })()}
                 {sig.bb?(<div style={{marginTop:4,fontSize:9,color:"#555",fontFamily:"monospace"}}>BB: ${fmt(sig.bb.lower)} - ${fmt(sig.bb.upper)}</div>):null}
                 {sig.ma20?(<div style={{marginTop:2,fontSize:9,color:"#555",fontFamily:"monospace"}}>MA20: ${fmt(sig.ma20)}{sig.ma50?" | MA50: $"+fmt(sig.ma50):""}</div>):null}
                 {(function(){
@@ -606,7 +630,7 @@ export default function App() {
   function ExitRow(props){
     var s=props.s, key=s.ticker+"_"+s.group, bp=positions[key], sh=shares[key];
     var sig=s.signal, rsi=sig?sig.RSI:null, fib=sig?sig.fib:null;
-    var exit=(s.price&&bp)?getExitSignal(s.price,bp,rsi,fib,TARGETS[s.ticker]):null;
+    var exit=(s.price&&bp)?getExitSignal(s.price,bp,rsi,fib,getTarget(s.ticker)):null;
     var isEditing=editKey===key;
     var totalVal=(sh&&s.price)?sh*s.price:null, dayChg=(sh&&s.change)?sh*s.change:null;
     return(
@@ -1042,8 +1066,8 @@ export default function App() {
                       <div style={{display:"flex",alignItems:"center",gap:8}}>
                         <div style={{textAlign:"right"}}>
                           {s.price?<div style={{fontSize:12,fontWeight:700,color:(s.changePct==null?"#fff":(s.changePct>=0?"#00e676":"#ff5252")),fontFamily:"monospace"}}>${fmt(s.price)}</div>:null}
-                          {info?<div style={{fontSize:10,color:"#ffd740",fontFamily:"monospace"}}>Maal: ${fmt(info.target)}</div>:null}
-                          {s.price&&info?<div style={{fontSize:9,color:"#555",fontFamily:"monospace"}}>{((info.target-s.price)/s.price*100).toFixed(1)}% up</div>:null}
+                          {(function(){ var t=getTarget(s.ticker); return t?<div style={{fontSize:10,color:(liveTargets[s.ticker]?"#00e676":"#ffd740"),fontFamily:"monospace"}}>Maal: ${fmt(t)}{liveTargets[s.ticker]?" LIVE":""}</div>:null; })()}
+                          {(function(){ var t=getTarget(s.ticker); return (s.price&&t)?<div style={{fontSize:9,color:(t>s.price?"#69f0ae":"#ff5252"),fontFamily:"monospace"}}>{((t-s.price)/s.price*100).toFixed(1)}% {t>s.price?"up":"down"}</div>:null; })()}
                         </div>
                         {info?<span style={{fontSize:9,color:info.rating.includes("Strong")?"#00e676":"#69f0ae",background:"rgba(0,230,118,0.08)",padding:"2px 7px",borderRadius:5}}>{info.rating}</span>:null}
                         <span style={{fontSize:12,color:"#333"}}>{isSelected?"^":">"}</span>
