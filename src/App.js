@@ -1,5 +1,36 @@
 import { useState, useRef, useEffect } from "react";
 
+var STOCK_INFO = {
+  RCAT:{fullName:"Red Cat Holdings",desc:"Forsvarsdrone selskab med US Army kontrakter. Perfekt positioneret i den globale drone supercycle drevet af konflikter i Ukraine og Mellemoosten.",bull:"Multimilliard IDIQ kontrakt med US Army. NATO allierede opbygger drone kapacitet. Markedet vokser 15% arligt til 2030.",bear:"Lille selskab afhaengig af forsvarsbudgetter. Faa stoerre kontrakter.",catalysts:["US Army ordre fornyelse Q3 2026","NATO drone kontrakt","Ukrainekonflikt driver eftersporgsel"],target:21.75,sector:"Forsvar / Droner",mcap:"~$500M",pe:"N/A",rating:"Strong Buy",analysts:4},
+  ACHR:{fullName:"Archer Aviation",desc:"Udvikler elektriske fly til byluftfart (eVTOL). Taenk Uber men i luften - kortdistance taxiture over byer. United Airlines har investeret og bestilt fly.",bull:"FAA certificering naermer sig 2026. United Airlines og Stellantis partnere. $1 trillion marked i 2035. First-mover fordel.",bear:"FAA certificering kan forsinkes. Hoej kapitalintensiv industri. Konkurrence fra Joby Aviation.",catalysts:["FAA Type Certificering 2026","Forste kommercielle rute","United Airlines deployment"],target:13.20,sector:"Lufttransport / eVTOL",mcap:"~$2.1B",pe:"N/A",rating:"Buy",analysts:8},
+  ERAS:{fullName:"Erasca Inc.",desc:"Biotekselskab fokuseret paa at udrydde RAS/MAPK-drevne kraeftformer - en af de svaereste at behandle. RAS mutationer findes i 30% af alle kraefttilfaelde.",bull:"Stort umodt marked. Staerkt partnerskab med Novartis. FDA Breakthrough Therapy designation.",bear:"Klinisk stadie uden omsaetning. Hoej risiko for trial fejl. Brander kapital hurtigt.",catalysts:["Phase 2 trial data 2026","FDA breakthrough status","Novartis milestones"],target:20.30,sector:"Biotek / Onkologi",mcap:"~$800M",pe:"N/A",rating:"Strong Buy",analysts:6},
+  SMR:{fullName:"NuScale Power",desc:"Pioneer inden for Small Modular Reactors (SMR). AI datacentre bruger enorme maengder strom og SMR er den eneste skalerbare losning. Microsoft, Google og Amazon soeger kernekraft til AI.",bull:"AI energikrise driver massiv eftersporgsel. Forste SMR godkendt af NRC. Tech gigant kontrakter. Regeringsstoette.",bear:"Teknologien stadig under udvikling. Lange tidslinjer. Politisk modstand mod kernekraft.",catalysts:["Forste SMR reaktor online 2026-2027","Microsoft/Google kontrakter","DOE subsidier"],target:21.00,sector:"Energi / Kernekraft",mcap:"~$1.2B",pe:"N/A",rating:"Buy",analysts:9},
+  SOUN:{fullName:"SoundHound AI",desc:"AI-stemmeplatform der driver stemmestyring i biler, restauranter og elektronik. Nvidia ejer en stake. Bruges af Hyundai, Honda og Stellantis.",bull:"Nvidia investering giver trovaerdighed. Automotive stemme-AI er multi-milliard marked. Revenue +89% YoY.",bear:"Konkurrence fra Google og Amazon. Fortsat tab-givende. Hoj vaerdiansaettelse.",catalysts:["Ny automotive kontrakt","Restaurant chain expansion","Nvidia samarbejde"],target:13.30,sector:"AI / Stemme-teknologi",mcap:"~$4B",pe:"N/A",rating:"Buy",analysts:7},
+  RGTI:{fullName:"Rigetti Computing",desc:"Quantum computing virksomhed der bygger superconducting quantum processorer. Tilbyder cloud-baseret quantum via Quantum Cloud Services platform.",bull:"Trump-administrationen annoncerede $2B quantum investering. En af de faa rene quantum-plays. Teknologien loser problemer umulige for klassiske computere.",bear:"Quantum er stadig tidlig fase. Hoj burn rate. Konkurrence fra IBM og Google.",catalysts:["US Government $2B program","Nyt 84-qubit chip","Enterprise kontrakter"],target:18.00,sector:"Quantum Computing",mcap:"~$3B",pe:"N/A",rating:"Speculative Buy",analysts:5},
+  CAN:{fullName:"Canaan Inc.",desc:"En af verdens stoerste producenter af Bitcoin mining hardware. Saelger Avalon miners globalt og har startet self-mining.",bull:"Bitcoin halving reducerede udbud. Bitcoin over $100K ville eksplodere profitterne. Ekstremt billig under $1.",bear:"Totalt afhaengig af Bitcoin pris. Kinesisk selskab med geopolitisk risiko.",catalysts:["Bitcoin over $100K","Naeste halvering 2028","Self-mining ekspansion"],target:2.85,sector:"Krypto / Bitcoin Mining",mcap:"~$80M",pe:"N/A",rating:"Buy",analysts:7},
+  MU:{fullName:"Micron Technology",desc:"Verdens storste DRAM og NAND flash memory producent. Kritisk eksponeret mod AI via High Bandwidth Memory (HBM) som er essentielt for Nvidia AI chips. HBM giver 3-5x hoejere fortjeneste.",bull:"HBM marked vaekster fra $35B til $100B. En af kun 3 HBM producenter. EPS-vaekst +651%. Forward P/E 9.4x - ekstremt billig.",bear:"Halvleder cyklusser er brutale. Overcapacity risiko. Geopolitisk Taiwan-risiko.",catalysts:["HBM3E leverancer til Nvidia","AI datacenter ekspansion","PC/Smartphone opsving"],target:165.00,sector:"Halvledere / AI Memory",mcap:"~$95B",pe:"9.4x forward",rating:"Strong Buy",analysts:28},
+  IONQ:{fullName:"IonQ",desc:"Verdens forste borsnoterede rene quantum computing virksomhed. Bruger trapped-ion teknologi som er mere praecis end superconducting quantum. Amazon Web Services er stoerste partner.",bull:"Trapped-ion er teknologisk overlegen. AWS partnership naer millioner af virksomheder. Regering kontrakter. $450B marked i 2030.",bear:"Kommerciel quantum nytte er stadig vaek. Hoj burn rate.",catalysts:["Nyt 64-qubit system","AWS expansion","Government kontrakter"],target:50.00,sector:"Quantum Computing",mcap:"~$7B",pe:"N/A",rating:"Buy",analysts:9},
+  RZLV:{fullName:"Rezolve AI",desc:"AI-drevet commerce platform der forbinder brands med forbrugere via mobil shopping. Bruger generativ AI til personalisering med Google og Microsoft Azure partnerskaber.",bull:"9/9 analytikere giver Buy. Revenue fra nul til $310M i 2026. ARR target $500M. Google og Microsoft validerer teknologien.",bear:"Aktien faldet 42% YTD. Vaekst delvist fra opkoeb. Ikke profitabelt.",catalysts:["Q2/Q3 2026 revenue","Nye enterprise kontrakter","Google expansion"],target:12.25,sector:"AI / E-commerce",mcap:"~$500M",pe:"N/A",rating:"Strong Buy",analysts:9},
+  EONR:{fullName:"EON Resources",desc:"Lille olie og gas selskab med ambitiost 92-brondes boring-program i USA. Forste nye brondes forventes online midt 2026. Insiders har kobt over 1.5M aktier.",bull:"D. Boral Capital kursmaal $4.50 = +1000% upside. Insider koeb paa 1.5M aktier. 92-brondes program kan transformere selskabet.",bear:"Kun 1 analytiker. Afhaengig af oliepriser. Hoj eksekveringsrisiko.",catalysts:["Forste brondes online Q3 2026","Oliepris over $90","Opkoebs interesse"],target:4.50,sector:"Olie og Gas",mcap:"~$30M",pe:"N/A",rating:"Buy",analysts:1},
+  POET:{fullName:"POET Technologies",desc:"Udvikler revolutionaere fotonic chips der integrerer lys og elektronik paa samme chip. Nvidia investerede $6.5B i fotonics maj 2026. POET er en early-stage moonshot i dette rum.",bull:"Nvidia $6.5B fotonics investering. 30.000 enheder leveres 2026. Partnerskaber med LITEON og Lessenger. Hyperscaler interesse.",bear:"Meget lille selskab. Aktien allerede steget 315% og er foran analyst maalene.",catalysts:["30.000 leverancer 2026","Hyperscaler partnerskab","Nvidia indirekte eksponering"],target:8.20,sector:"AI Fotonics",mcap:"~$500M",pe:"N/A",rating:"Speculative Buy",analysts:2},
+  MSFT:{fullName:"Microsoft Corporation",desc:"Verdens stoerste software selskab og bedste maade at faa AI-eksponering. Ejer 49% af OpenAI og har integreret AI i alle produkter via Copilot. Azure er verdens naestsaerste cloud.",bull:"Morningstar vurderer 30% undervaerdisat. Azure AI +35% YoY. 55 analytikere Strong Buy. $561 kursmaal.",bear:"Hoj vaerdiansaettelse. Antitrust risici. Google og Amazon konkurrerer.",catalysts:["Azure Q4 earnings","Copilot adoption","OpenAI GPT-5"],target:561.00,sector:"Cloud / AI / Software",mcap:"~$3.4T",pe:"32x",rating:"Strong Buy",analysts:55},
+  NVTS:{fullName:"Navitas Semiconductor",desc:"Producerer naeste-generation GaN og SiC halvledere der er 3-20x mere energieffektive end traditionelle chips. Bruges i AI datacentre, elbiler og mobile opladere.",bull:"AI datacentre kraever dramatisk mere energieffektivitet - GaN er losningen. Apple og Dell bruger chips.",bear:"Konkurrence fra Infineon. Lille selskab. Endnu ikke profitabelt.",catalysts:["Apple adoption","Datacenter GaN","EV kontrakter"],target:14.46,sector:"AI Power Chips",mcap:"~$1.2B",pe:"N/A",rating:"Buy",analysts:8},
+  PGY:{fullName:"Pagaya Technologies",desc:"AI-drevet fintech der hjaelper banker med at godkende flere laaneansogninger via avancerede AI-modeller. Partnere: Ally Financial, US Bank og SoFi.",bull:"AI kreditvurdering er enormt marked. Store bank partnerskaber. Revenue vaekster solidt.",bear:"Kreditrisiko i recession. Konkurrence fra credit bureauer.",catalysts:["Nye bank partnerskaber","Profitabilitet milestone"],target:34.50,sector:"AI Fintech",mcap:"~$800M",pe:"N/A",rating:"Buy",analysts:6},
+  TSM:{fullName:"Taiwan Semiconductor",desc:"Verdens stoerste chip-producent og den ENESTE der kan lave avancerede 2nm chips. Producerer for Apple, Nvidia og AMD. Uden TSMC stopper al modern teknologi.",bull:"Uerstattelig monopolposition. AI chip eftersporgsel eksploderer. INSIDER KOB x70 er ekstraordinaert bullish. Arizona fabrik reducerer geopolitisk risiko.",bear:"Taiwan-Kina invasion risiko er den stoerste bekymring i verden.",catalysts:["Nvidia H200/B100 ordrer","Apple M4 produktion","Arizona fabrik"],target:468.00,sector:"Halvledere / Chips",mcap:"~$600B",pe:"22x",rating:"Strong Buy",analysts:38},
+  PLTR:{fullName:"Palantir Technologies",desc:"Verdens bedste AI-software til data-analyse for militaer, CIA og store virksomheder. AIP platformen er hurtigst voksende enterprise AI. Bedste kvartal nogensinde med 85% revenue vaekst.",bull:"85% revenue vaekst. Citi Buy $235. Defense spending boomer under Trump. AIP game-changing.",bear:"Hoj vaerdiansaettelse P/E 100x+. Kontroversielt pga. government surveillance.",catalysts:["US Army AI kontrakter","AIP adoption","NATO spending"],target:194.00,sector:"AI / Defense Software",mcap:"~$380B",pe:"100x+",rating:"Buy",analysts:24},
+  SOFI:{fullName:"SoFi Technologies",desc:"Digital bank med alt fra studielaen til investeringer i en app. Foretrukket af millennials og Gen Z. CEO Anthony Noto har kobt aktier for $1.8M personligt.",bull:"Rekord Q1 $1.1B revenue. CEO insider koeb $1.8M. Veteran-analytiker forudsiger $100 langsigtet. Gen Z foretrukne bank.",bear:"Kreditomkostninger stiger. Konkurrence fra store banker. Hold konsensus.",catalysts:["Q2 2026 earnings","Rentenedsaettelser","Ny laaneprodukt"],target:21.10,sector:"Digital Banking",mcap:"~$18B",pe:"40x",rating:"Hold/Buy",analysts:24},
+  COHR:{fullName:"Coherent Corp.",desc:"Verdens stoerste producent af fotonic og laser komponenter til AI datacentre. Nvidia investerede $2 milliarder. Co-packaged Optics (CPO) er den naeste revolution i datacenter teknologi.",bull:"Nvidia $2B investering. BofA kursmaal $400. Aktien op 359% seneste aar. CPO adoption eksploderer med naeste AI chips.",bear:"Allerede steget enormt - vaerdiansaettelse er straekket.",catalysts:["Nvidia CPO chips","Datacenter optik kontrakter","400G/800G transceivers"],target:400.00,sector:"AI Fotonics / Optik",mcap:"~$70B",pe:"45x forward",rating:"Buy",analysts:20},
+  LASR:{fullName:"nLIGHT Inc.",desc:"Producerer hoejydende industri og forsvarslasere. Positioneret i krydspunktet af AI-industri og global forsvarsoprustning. Forsvarslasere koster kun faa dollars per skud vs millioner for Patriot missiler.",bull:"Revenue +55% Q1 2026. Analytiker kursmaal $85. Forsvarslaser kostnadsfordel er enorm. AI fabrik automation driver industrilaser.",bear:"Koncentrationsrisiko. Afhaengig af forsvarsbudgetter.",catalysts:["70kW forsvarslaser","NATO laser ordre","AI fabrik kontrakter"],target:85.00,sector:"Forsvarslasere",mcap:"~$2B",pe:"35x",rating:"Buy",analysts:8},
+  BWMX:{fullName:"Betterware de Mexico",desc:"Mexicos stoerste direkte-salg virksomhed - Mexicos Tupperware med bedre vaekst. Saelger husholdningsprodukter via distributorer over hele Mexico.",bull:"61.2% under fair value. 74.5% analyst upside - storst af alle undervaerdisatte aktier. Stabil omsaetning og udbytte.",bear:"Lille likvid mexicansk aktie. Afhaengig af Mexicos oekonomi.",catalysts:["Ny mexicansk stater","E-commerce platform","Udbytte vaekst"],target:29.83,sector:"Forbrugsvarer",mcap:"~$400M",pe:"8x",rating:"Buy",analysts:5},
+  UNH:{fullName:"UnitedHealth Group",desc:"USA's stoerste sundhedsforsikringsselskab og driver Optum sundhedsdata platform. En af de mest stabile og profitabile virksomheder i S&P 500.",bull:"P/E 20.5% under sektormedianen. Kursmaal $373 giver 30.7% upside. Strong Buy konsensus. Stabil vaekst og udbytte.",bear:"Politisk risiko fra Medicare regulering. Stigende sundhedsomkostninger.",catalysts:["Q3 2026 earnings","Optum vaekst","Medicare Advantage"],target:373.00,sector:"Sundhedsforsikring",mcap:"~$450B",pe:"21x",rating:"Strong Buy",analysts:22},
+  LULU:{fullName:"Lululemon Athletica",desc:"Verdens ledende premium athleisure brand. Aktien faldet 50%+ fra toppen men fundamentals er staerke. Kina vaekst paa 30%+ aarligt. Turnaround under ny CEO.",bull:"Handles til kun 15x P/E - historisk billig. Kina vaekst eksplosiv. Brand loyalty ekstraordinaer.",bear:"USA-markedet er maettet. Konkurrence fra Nike og Alo Yoga.",catalysts:["Kina ekspansion","Ny produktlinje","USA genopretning"],target:380.00,sector:"Athleisure / Mode",mcap:"~$16B",pe:"15x",rating:"Buy",analysts:28},
+  AGIX:{fullName:"Roundhill Generative AI ETF",desc:"Den mest unikke AI ETF - inkluderer private selskaber som Anthropic (1.7%) og SpaceX (2.6%). Den eneste maade at eje en bid af Anthropic (lavet Claude) og SpaceX paa borsen.",bull:"Anthropic vaerdisat til $61B. SpaceX dominerer rumfart. Diversificeret AI med private selskaber som bonus.",bear:"0.99% expense ratio. Koncentreret i AI der kan korrigere.",catalysts:["Anthropic IPO rygter","SpaceX Starlink noterig","AI sektor vaekst"],target:45.00,sector:"AI ETF",mcap:"ETF",pe:"N/A",rating:"Buy",analysts:"ETF"},
+  QTUM:{fullName:"Defiance Quantum ETF",desc:"Giver eksponering mod hele quantum computing sektoren i en investering. Holdings: Rigetti, IonQ, Micron og Coherent. Quantum forventes at skabe $450B i vaerdi inden 2030.",bull:"Diversificeret quantum eksponering. Trump $2B quantum program loefter sektoren.",bear:"Quantum er mange aar vaek fra kommerciel relevans.",catalysts:["Government quantum investering","Kommerciel quantum milestone"],target:180.00,sector:"Quantum ETF",mcap:"ETF",pe:"N/A",rating:"Buy",analysts:"ETF"},
+  BAI:{fullName:"iShares Active AI & Tech ETF",desc:"Aktivt forvaltet af BlackRocks Tony Kim - en af verdens mest respekterede tech-investorer med 30 aars erfaring. Vaelger aktivt de bedste AI selskaber.",bull:"Aktiv forvaltning af verdensklasse manager. 49 koncentrerede holdings. 0.47% expense ratio.",bear:"Aktiv forvaltning slaar ikke altid markedet.",catalysts:["Tony Kim portefolje opdateringer","AI sektor rotation"],target:60.00,sector:"AI Tech ETF",mcap:"ETF",pe:"N/A",rating:"Buy",analysts:"ETF"},
+  XBI:{fullName:"SPDR S&P Biotech ETF",desc:"Equal-weight biotech ETF med small og mid-cap eksponering. AI-drevet drug discovery accelererer sektoren - hvad der tog 10 aar tager nu 2. M&A aktivitet er rekordhoj.",bull:"AI accelererer drug discovery. M&A boom. Equal-weight giver mere upside fra small caps.",bear:"Biotech er ekstremt volatil. FDA godkendelser er uforudsigelige.",catalysts:["FDA approvals","AI drug discovery","Pharma M&A"],target:160.00,sector:"Biotek ETF",mcap:"ETF",pe:"N/A",rating:"Buy",analysts:"ETF"},
+  UFO:{fullName:"Procure Space ETF",desc:"Eksponering mod hele rum-industrien. Holdings: Rocket Lab og AST SpaceMobile. 9 nye space ETFs lanceret i 2026. SpaceX Starlink revolutionerer global internet.",bull:"Space vaekster 15% arligt. Rocket Lab billig SpaceX alternativ. Militaert satellitbrug eksploderer.",bear:"Hoj expense ratio 0.75%. Mange tabsgivende holdings. SpaceX ikke paa borsen.",catalysts:["Rocket Lab maaneraketter","AST global launch","NASA kontrakter"],target:75.00,sector:"Space ETF",mcap:"ETF",pe:"N/A",rating:"Buy",analysts:"ETF"},
+};
+
 var MOONSHOTS = [
   { ticker:"RCAT", name:"Red Cat Holdings",  color:"#ff3d00", sector:"Defense Drones" },
   { ticker:"ACHR", name:"Archer Aviation",   color:"#00e5ff", sector:"Air Taxis"       },
@@ -322,6 +353,7 @@ export default function App() {
   var [alertSell, setAlertSell] = useState("");
   var [showAlertLog, setShowAlertLog] = useState(false);
   var [rankTab,     setRankTab]     = useState("r6");
+  var [infoStock,   setInfoStock]   = useState(null);
   var [darkMode,    setDarkMode]    = useState(true);
   var [insiderData, setInsiderData] = useState({});
   var timerRef = useRef(null);
@@ -690,7 +722,7 @@ export default function App() {
           <button onClick={scanAll} disabled={scanning} style={{background:(scanning?"#0a1a0a":"#00e676"),color:(scanning?"#3a6a3a":"#000"),border:"none",borderRadius:8,padding:"6px 14px",fontSize:12,fontWeight:700,cursor:(scanning?"default":"pointer")}}>{scanning?"Henter...":"Scan"}</button>
         </div>
         <div style={{display:"flex",gap:6}}>
-          {[["signals","Entry"],["exit","Exit"],["portfolio","Portfolio"],["alerts","Alerts"],["ranks","Rangliste"]].map(function(t){
+          {[["signals","Entry"],["exit","Exit"],["portfolio","Portfolio"],["alerts","Alerts"],["ranks","Rangliste"],["info","Info"]].map(function(t){
             return(<button key={t[0]} onClick={function(){setActiveTab(t[0]);}} style={{background:(activeTab===t[0]?"rgba(255,255,255,0.08)":"transparent"),color:(activeTab===t[0]?"#fff":"#555"),border:"1px solid "+(activeTab===t[0]?"rgba(255,255,255,0.15)":"rgba(255,255,255,0.06)"),borderRadius:20,padding:"5px 14px",fontSize:11,cursor:"pointer",fontWeight:(activeTab===t[0]?700:400)}}>{t[1]}</button>);
           })}
         </div>
@@ -932,6 +964,92 @@ export default function App() {
               </div>
             </div>
           ):null}
+        </div>
+      ):null}
+
+      {activeTab==="info"?(
+        <div style={{padding:"12px 14px 40px"}}>
+          {infoStock?(
+            <div style={{background:"rgba(255,255,255,0.03)",border:"1px solid rgba(255,255,255,0.1)",borderRadius:14,padding:16,marginBottom:16}}>
+              <div style={{display:"flex",alignItems:"center",gap:10,marginBottom:14}}>
+                <div style={{width:10,height:10,borderRadius:"50%",background:infoStock.color}}/>
+                <div style={{flex:1}}>
+                  <div style={{fontSize:18,fontWeight:900,color:infoStock.color,fontFamily:"monospace"}}>{infoStock.ticker}</div>
+                  <div style={{fontSize:12,color:"#555"}}>{STOCK_INFO[infoStock.ticker]&&STOCK_INFO[infoStock.ticker].fullName}</div>
+                </div>
+                <button onClick={function(){setInfoStock(null);}} style={{background:"rgba(255,255,255,0.07)",border:"1px solid rgba(255,255,255,0.1)",borderRadius:8,padding:"5px 12px",color:"#888",fontSize:12,cursor:"pointer"}}>Luk</button>
+              </div>
+              {STOCK_INFO[infoStock.ticker]&&(function(){
+                var info=STOCK_INFO[infoStock.ticker];
+                return(
+                  <div>
+                    <div style={{fontSize:13,color:"#aaa",lineHeight:1.8,marginBottom:14}}>{info.desc}</div>
+                    <div style={{display:"grid",gridTemplateColumns:"1fr 1fr",gap:8,marginBottom:14}}>
+                      {[["Sektor",info.sector],["Market Cap",info.mcap],["P/E",info.pe],["Analyst Maal","$"+fmt(info.target)],["Rating",info.rating],["Antal Analytikere",info.analysts]].map(function(row){
+                        return(<div key={row[0]} style={{background:"rgba(255,255,255,0.03)",borderRadius:8,padding:"8px 10px"}}>
+                          <div style={{fontSize:9,color:"#444",fontFamily:"monospace",marginBottom:3}}>{row[0]}</div>
+                          <div style={{fontSize:12,color:"#bbb",fontWeight:600}}>{row[1]}</div>
+                        </div>);
+                      })}
+                    </div>
+                    <div style={{marginBottom:12}}>
+                      <div style={{fontSize:10,color:"#00e676",fontFamily:"monospace",marginBottom:6}}>BULL CASE</div>
+                      <div style={{fontSize:12,color:"#aaa",lineHeight:1.75}}>{info.bull}</div>
+                    </div>
+                    <div style={{marginBottom:12}}>
+                      <div style={{fontSize:10,color:"#ff5252",fontFamily:"monospace",marginBottom:6}}>BEAR CASE</div>
+                      <div style={{fontSize:12,color:"#aaa",lineHeight:1.75}}>{info.bear}</div>
+                    </div>
+                    <div>
+                      <div style={{fontSize:10,color:"#ffd740",fontFamily:"monospace",marginBottom:6}}>KATALYSATORER</div>
+                      {info.catalysts.map(function(c,i){
+                        return(<div key={i} style={{display:"flex",alignItems:"center",gap:8,marginBottom:5}}>
+                          <div style={{width:5,height:5,borderRadius:"50%",background:"#ffd740",flexShrink:0}}/>
+                          <span style={{fontSize:12,color:"#888"}}>{c}</span>
+                        </div>);
+                      })}
+                    </div>
+                  </div>
+                );
+              })()}
+            </div>
+          ):null}
+
+          {!infoStock?(
+            <div style={{background:"rgba(255,255,255,0.03)",border:"1px solid rgba(255,255,255,0.08)",borderRadius:10,padding:"12px 14px",marginBottom:14}}>
+              <div style={{fontSize:11,color:"#ffd740",fontFamily:"monospace",marginBottom:5}}>AKTIE BIBLIOTEK</div>
+              <div style={{fontSize:12,color:"#555",lineHeight:1.7}}>Tryk paa en aktie for at se en dybdegaaende analyse med bull/bear case og katalysatorer.</div>
+            </div>
+          ):null}
+
+          {[{label:"MOONSHOTS",color:"#ff6d00",list:moonshots},{label:"LONG TERM",color:"#60a5fa",list:longterm},{label:"UNDERVALUED",color:"#fb7185",list:undervalued},{label:"ETF FONDE",color:"#ffd740",list:etfList}].map(function(section){
+            return(
+              <div key={section.label}>
+                <div style={{display:"flex",alignItems:"center",gap:10,margin:"16px 0 8px",padding:"8px 12px",background:section.color+"18",border:"1px solid "+section.color+"33",borderRadius:10}}>
+                  <span style={{fontSize:13,fontWeight:900,color:section.color}}>{section.label}</span>
+                </div>
+                {section.list.map(function(s){
+                  var info=STOCK_INFO[s.ticker];
+                  var isSelected=infoStock&&infoStock.ticker===s.ticker;
+                  return(
+                    <div key={s.ticker} onClick={function(){setInfoStock(isSelected?null:s);}}
+                      style={{display:"flex",alignItems:"center",gap:10,background:(isSelected?s.color+"15":"rgba(255,255,255,0.025)"),border:"1px solid "+(isSelected?s.color+"44":"rgba(255,255,255,0.06)"),borderRadius:10,padding:"11px 14px",marginBottom:6,cursor:"pointer"}}>
+                      <div style={{width:8,height:8,borderRadius:"50%",background:s.color,flexShrink:0}}/>
+                      <div style={{flex:1}}>
+                        <span style={{fontSize:13,fontWeight:900,color:s.color,fontFamily:"monospace"}}>{s.ticker}</span>
+                        <span style={{fontSize:10,color:"#444",marginLeft:8}}>{info?info.fullName:s.name}</span>
+                      </div>
+                      <div style={{display:"flex",alignItems:"center",gap:8}}>
+                        {info?<span style={{fontSize:10,color:"#ffd740",fontFamily:"monospace"}}>${fmt(info.target)}</span>:null}
+                        {info?<span style={{fontSize:9,color:info.rating.includes("Strong")?"#00e676":"#69f0ae",background:"rgba(0,230,118,0.08)",padding:"2px 7px",borderRadius:5}}>{info.rating}</span>:null}
+                        <span style={{fontSize:12,color:"#333"}}>{isSelected?"^":">"}</span>
+                      </div>
+                    </div>
+                  );
+                })}
+              </div>
+            );
+          })}
         </div>
       ):null}
 
